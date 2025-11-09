@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Goal Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Set default font to Inter and apply dark mode -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar styling for a sleeker look */
+        #goals-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        #goals-list::-webkit-scrollbar-thumb {
+            background-color: #4f46e5;
+            border-radius: 3px;
+        }
+        .message-box {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        /* Style for the action plan modal */
+        .plan-modal {
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+        }
+        .plan-content {
+            max-height: 90vh;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-start justify-center p-4 sm:p-8">
+
+    <div class="w-full max-w-2xl bg-white dark:bg-gray-800 shadow-2xl rounded-xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700 mt-10">
+
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white mb-2 flex items-center">
+            <svg class="w-8 h-8 mr-3 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 0012 21a12.001 12.001 0 008.618-14.016z"></path></svg>
+            Personal Goals
+        </h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Set a clear path to success. Your goals are saved in real-time.</p>
+
+        <!-- User ID Display (MANDATORY for multi-user apps) -->
+        <div id="user-id-display" class="mb-4 p-3 text-xs bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg hidden">
+            <span class="font-semibold">User ID:</span> <span id="user-id-value" class="break-all">...loading...</span>
+        </div>
+        
+        <!-- Goal Input Form -->
+        <form id="new-goal-form" class="flex flex-col sm:flex-row gap-3 mb-8">
+            <input
+                type="text"
+                id="goal-input"
+                placeholder="What is your next goal? (e.g., Run a 5k)"
+                required
+                class="flex-grow p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white text-gray-900 transition duration-150 ease-in-out shadow-sm"
+            >
+            <button
+                type="submit"
+                id="add-goal-button"
+                class="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out shadow-md hover:shadow-lg disabled:opacity-50"
+                disabled
+            >
+                Add Goal
+            </button>
+        </form>
+
+        <!-- Goals List Container -->
+        <div class="h-96 overflow-y-auto pr-2" id="goals-list">
+            <!-- Goals will be rendered here -->
+            <div id="loading-indicator" class="text-center text-gray-500 dark:text-gray-400 py-10">
+                <svg class="animate-spin h-5 w-5 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading goals...
+            </div>
+            <p id="no-goals-message" class="text-center text-gray-500 dark:text-gray-400 py-10 hidden">
+                You haven't set any goals yet. Start your journey!
+            </p>
+        </div>
+
+    </div>
+
+    <!-- ACTION PLAN MODAL (LLM Output Display) -->
+    <div id="plan-modal" class="plan-modal fixed inset-0 flex items-center justify-center p-4 hidden">
+        <div class="plan-content bg-white dark:bg-gray-800 w-full max-w-lg p-6 rounded-xl shadow-2xl overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Action Plan for: <span id="plan-goal-name" class="text-gray-900 dark:text-white"></span></h2>
+                <button onclick="hidePlanModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="plan-steps-container" class="space-y-4">
+                <!-- LLM generated/saved steps will be injected here -->
+                <div class="text-center text-gray-500 dark:text-gray-400 p-8">
+                    <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Generating plan...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Box for Custom Notifications (No alert() allowed) -->
+    <div id="message-box" class="message-box fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-xl hidden opacity-0 translate-y-2"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Import getDoc for reading document data (needed for plan updates)
+        import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, setLogLevel, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL FIREBASE/APP VARIABLES ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Gemini API configuration
+        const API_KEY = "";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        const MAX_RETRIES = 5;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        // --- DOM Elements ---
+        const goalsList = document.getElementById('goals-list');
+        const goalInput = document.getElementById('goal-input');
+        const newGoalForm = document.getElementById('new-goal-form');
+        const addButton = document.getElementById('add-goal-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const noGoalsMessage = document.getElementById('no-goals-message');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const userIdValue = document.getElementById('user-id-value');
+        const messageBox = document.getElementById('message-box');
+        const planModal = document.getElementById('plan-modal');
+        const planGoalName = document.getElementById('plan-goal-name');
+        const planStepsContainer = document.getElementById('plan-steps-container');
+
+        // --- Utility Functions ---
+
+        function showMessage(message, type = 'success') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500'
+            };
+
+            messageBox.textContent = message;
+            messageBox.className = `message-box fixed top-4 right-4 text-white p-4 rounded-lg shadow-xl opacity-100 translate-y-0 ${colors[type]}`;
+            messageBox.classList.remove('hidden');
+
+            setTimeout(() => {
+                messageBox.classList.add('opacity-0', 'translate-y-2');
+                messageBox.addEventListener('transitionend', () => {
+                    messageBox.classList.add('hidden');
+                }, { once: true });
+            }, 3000);
+        }
+
+        // --- Exponential Backoff Fetch Helper ---
+        async function retryFetchWithExponentialBackoff(url, options, maxRetries) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`Retryable error: Status ${response.status}`);
+                    }
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        throw new Error(`API Error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
+                    }
+                    return response.json();
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // --- Firebase Initialization and Auth ---
+
+        async function initFirebase() {
+            try {
+                // setLogLevel('Debug'); 
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdValue.textContent = userId;
+                        userIdDisplay.classList.remove('hidden');
+                        isAuthReady = true;
+                        addButton.disabled = false;
+                        listenForGoals();
+                        showMessage('Goal Tracker loaded successfully!', 'success');
+                    } else {
+                        userId = null;
+                        isAuthReady = true;
+                        addButton.disabled = true;
+                        userIdValue.textContent = 'Not authenticated';
+                        goalsList.innerHTML = '<p class="text-center text-red-500 py-10">Authentication failed. Please check environment configuration.</p>';
+                    }
+                });
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase initialization or sign-in failed:", error);
+                loadingIndicator.textContent = 'Error loading application.';
+                showMessage('Failed to initialize: ' + error.message, 'error');
+            }
+        }
+
+        // --- LLM Feature: Generate Action Plan ---
+
+        const actionPlanSchema = {
+            type: "OBJECT",
+            properties: {
+                "steps": {
+                    "type": "ARRAY",
+                    "description": "A list of 5 to 7 highly actionable steps to achieve the user's goal.",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "stepDescription": { "type": "STRING", "description": "The specific, concise, and measurable action to take." },
+                            "suggestedPriority": { "type": "STRING", "description": "High, Medium, or Low, based on impact." }
+                        },
+                        "required": ["stepDescription", "suggestedPriority"]
+                    }
+                }
+            },
+            required: ["steps"]
+        };
+
+        /**
+         * Calls the Gemini API to generate a structured action plan for a given goal.
+         */
+        async function generateActionPlan(goalId, goalName, btn) {
+            if (!isAuthReady || !userId) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            showPlanModal(goalName, null, true); // Show loading modal
+
+            const systemPrompt = "You are a specialized productivity and goal-setting assistant. Your task is to analyze the user's goal and provide a structured action plan consisting of 5 to 7 specific, actionable, and logical steps. Categorize each step by suggested priority (High, Medium, or Low). Do not include any introductory or concluding text, only the JSON object.";
+            const userQuery = `Create an action plan for this goal: "${goalName}"`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: actionPlanSchema,
+                    tools: [{ "google_search": {} }],
+                }
+            };
+
+            try {
+                const result = await retryFetchWithExponentialBackoff(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }, MAX_RETRIES);
+
+                const jsonString = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!jsonString) throw new Error("API returned no content.");
+                
+                const planData = JSON.parse(jsonString);
+                
+                // 1. Augment plan steps with isCompleted status for saving
+                const augmentedSteps = planData.steps.map(step => ({
+                    ...step,
+                    isCompleted: false 
+                }));
+
+                // 2. Save the new plan back to the goal document
+                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, goalId);
+                await updateDoc(goalDocRef, {
+                    plan: { steps: augmentedSteps, lastGenerated: serverTimestamp() }
+                });
+
+                showMessage('Action Plan Generated and Saved!', 'success');
+                // The onSnapshot listener will trigger displayActionPlan via renderGoals
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                showMessage('Failed to generate action plan: ' + error.message, 'error');
+                showPlanModal(goalName, null, false, true); // Show error in modal
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '✨ Plan'; // Restore button text
+            }
+        }
+
+        // --- Modal Display Logic ---
+        
+        function getPriorityColor(priority) {
+            switch (priority?.toLowerCase()) {
+                case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+                case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+                case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+            }
+        }
+
+        /**
+         * Shows the modal, either for loading, error, or displaying the plan.
+         * @param {string} goalName - The name of the goal.
+         * @param {string} goalId - The ID of the goal.
+         * @param {boolean} isLoading - Show loading spinner.
+         * @param {boolean} isError - Show error message.
+         */
+        function showPlanModal(goalName, goalId, isLoading = false, isError = false) {
+            planModal.classList.remove('hidden');
+            planGoalName.textContent = goalName;
+            planStepsContainer.innerHTML = '';
+            
+            if (isLoading) {
+                planStepsContainer.innerHTML = `
+                    <div class="text-center text-gray-500 dark:text-gray-400 p-8">
+                        <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p>Generating a structured action plan with Gemini...</p>
+                    </div>`;
+            } else if (isError) {
+                planStepsContainer.innerHTML = `<p class="text-center text-red-500 p-8">Could not generate plan. Please try again or refine your goal.</p>`;
+            } else if (goalId && !isLoading && !isError) {
+                // If we have a goalId and no loading/error, it means we're ready to display a saved plan.
+                // We'll let the onSnapshot listener trigger the display (via renderGoals -> displayActionPlan).
+            }
+        }
+
+        function hidePlanModal() {
+            planModal.classList.add('hidden');
+        }
+        window.hidePlanModal = hidePlanModal; 
+
+        function displayActionPlan(goalId, steps) {
+            planStepsContainer.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const priorityClass = getPriorityColor(step.suggestedPriority);
+                const isChecked = step.isCompleted || false;
+                
+                const stepElement = document.createElement('div');
+                stepElement.classList.add('p-4', 'bg-gray-50', 'dark:bg-gray-700', 'rounded-lg', 'shadow-sm', 'flex', 'items-start', 'space-x-3', 'transition', 'duration-200', isChecked ? 'opacity-70' : '');
+                
+                stepElement.innerHTML = `
+                    <div class="flex-shrink-0 pt-1">
+                        <input type="checkbox" id="step-${goalId}-${index}" class="form-checkbox h-5 w-5 text-indigo-600 rounded" ${isChecked ? 'checked' : ''}>
+                    </div>
+                    <div class="flex-grow">
+                        <label for="step-${goalId}-${index}" class="text-gray-900 dark:text-gray-100 font-medium cursor-pointer ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : ''}">${step.stepDescription}</label>
+                        <span class="text-xs font-semibold px-2 py-0.5 mt-1 rounded-full inline-block ${priorityClass}">${step.suggestedPriority || 'N/A'} Priority</span>
+                    </div>
+                `;
+
+                // Add event listener to toggle step completion
+                stepElement.querySelector(`#step-${goalId}-${index}`).addEventListener('change', (e) => {
+                    togglePlanStepCompletion(goalId, index, isChecked);
+                });
+
+                planStepsContainer.appendChild(stepElement);
+            });
+        }
+
+
+        // --- Firestore Data Operations ---
+
+        /**
+         * Generic function to update a single field (notes, progress) on a goal.
+         */
+        async function updateGoalField(docId, field, value) {
+            if (!isAuthReady || !userId) return;
+            try {
+                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                await updateDoc(goalDocRef, {
+                    [field]: value
+                });
+            } catch (e) {
+                console.error(`Error updating ${field} for document ${docId}: `, e);
+                showMessage(`Error updating ${field}: ` + e.message, 'error');
+            }
+        }
+
+        async function addGoal(name) {
+            if (!isAuthReady || !userId) return showMessage('Authentication not ready. Please wait a moment.', 'error');
+            try {
+                const goalsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/goals`);
+                await addDoc(goalsCollectionRef, {
+                    name: name,
+                    createdAt: serverTimestamp(),
+                    isCompleted: false,
+                    notes: '', // New field
+                    progress: 0, // New field
+                    plan: null, // New field for the generated plan
+                });
+                goalInput.value = '';
+                showMessage('Goal added!', 'success');
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showMessage('Error adding goal. Check console for details.', 'error');
+            }
+        }
+
+        async function toggleGoalCompletion(docId, currentStatus) {
+            if (!isAuthReady || !userId) return;
+            try {
+                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                await updateDoc(goalDocRef, {
+                    isCompleted: !currentStatus
+                });
+            } catch (e) {
+                console.error("Error updating document: ", e);
+                showMessage('Error updating goal status: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteGoal(docId) {
+            if (!isAuthReady || !userId) return;
+            try {
+                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                await deleteDoc(goalDocRef);
+                showMessage('Goal deleted.', 'success');
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                showMessage('Error deleting goal: ' + e.message, 'error');
+            }
+        }
+        
+        /**
+         * Toggles the completion status of an individual step in the saved action plan.
+         */
+        async function togglePlanStepCompletion(goalId, planStepIndex, currentStatus) {
+            if (!isAuthReady || !userId) return;
+            try {
+                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, goalId);
+                
+                // Fetch the current state to safely update the nested array
+                const docSnapshot = await getDoc(goalDocRef);
+                if (!docSnapshot.exists() || !docSnapshot.data().plan) return;
+                
+                const goalData = docSnapshot.data();
+                const currentPlanSteps = goalData.plan.steps;
+                
+                if (currentPlanSteps[planStepIndex]) {
+                    // Update the specific step's completion status
+                    currentPlanSteps[planStepIndex].isCompleted = !currentStatus;
+                    
+                    // Update Firestore with the modified plan array
+                    await updateDoc(goalDocRef, {
+                        'plan.steps': currentPlanSteps
+                    });
+                    // The onSnapshot listener handles refreshing the modal automatically
+                }
+            } catch (e) {
+                console.error("Error toggling plan step: ", e);
+                showMessage('Error updating step status: ' + e.message, 'error');
+            }
+        }
+
+
+        // --- Goal Rendering and Real-time Listener (Updated) ---
+
+        /**
+         * Renders the list of goals.
+         * @param {Array<Object>} goals Array of goal objects.
+         */
+        function renderGoals(goals) {
+            goalsList.innerHTML = '';
+            loadingIndicator.classList.add('hidden');
+            noGoalsMessage.classList.add('hidden');
+
+            if (goals.length === 0) {
+                noGoalsMessage.classList.remove('hidden');
+                return;
+            }
+
+            goals.sort((a, b) => {
+                const timeA = a.createdAt?.toMillis() || 0;
+                const timeB = b.createdAt?.toMillis() || 0;
+                return timeB - timeA; // Sort newest first
+            });
+
+            goals.forEach(goal => {
+                const goalId = goal.id;
+                const progress = goal.progress || 0;
+                const notes = goal.notes || '';
+                const hasPlan = !!goal.plan && goal.plan.steps?.length > 0;
+                
+                const li = document.createElement('div');
+
+                const baseClasses = [
+                    'p-0', 'mb-3', 'rounded-xl', 'transition', 'duration-200', 'ease-in-out', 'shadow-lg'
+                ];
+                
+                let statusClasses;
+                if (goal.isCompleted) {
+                    statusClasses = ['bg-green-100', 'dark:bg-green-900/50', 'border-2', 'border-green-500'];
+                } else {
+                    statusClasses = ['bg-white', 'dark:bg-gray-700', 'hover:bg-gray-100', 'dark:hover:bg-gray-600', 'border', 'border-indigo-200', 'dark:border-indigo-900'];
+                }
+                li.classList.add(...baseClasses, ...statusClasses);
+
+                // --- Main Goal Header (Always visible) ---
+                const mainHeader = document.createElement('div');
+                mainHeader.classList.add('flex', 'items-center', 'justify-between', 'p-4', 'pb-3');
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.classList.add('flex-grow', 'mr-4', 'text-gray-900', 'dark:text-white', 'break-words', 'text-lg', 'font-semibold');
+                nameDiv.textContent = goal.name;
+                if (goal.isCompleted) {
+                    nameDiv.classList.add('line-through', 'text-gray-500', 'dark:text-gray-400', 'italic');
+                }
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('flex', 'space-x-2', 'shrink-0');
+                
+                // Plan Button
+                const planBtn = document.createElement('button');
+                planBtn.innerHTML = hasPlan ? '✅ Plan' : '✨ Plan';
+                planBtn.title = hasPlan ? 'View/Edit Action Plan' : 'Generate Action Plan using AI';
+                planBtn.classList.add(
+                    'px-3', 'py-2', 'text-sm', 'font-medium', 'rounded-lg', 'shadow-sm', 'transition', 'duration-150', 'flex', 'items-center', 'justify-center', 'focus:ring-2', 'focus:ring-offset-2', 
+                    hasPlan ? 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:focus:ring-offset-gray-700' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 focus:ring-indigo-500 dark:bg-indigo-900/50 dark:text-indigo-300'
+                );
+                planBtn.addEventListener('click', () => {
+                    if (!hasPlan) {
+                        generateActionPlan(goalId, goal.name, planBtn);
+                    } else {
+                        // If plan exists, show the modal with the saved data
+                        showPlanModal(goal.name, goalId);
+                        displayActionPlan(goalId, goal.plan.steps);
+                    }
+                });
+                actionsDiv.appendChild(planBtn);
+
+
+                // Toggle Button
+                const toggleBtn = document.createElement('button');
+                toggleBtn.innerHTML = goal.isCompleted
+                    ? '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0012 4.041a8 8 0 00-7.854 7.747m0 0a8 8 0 0115.708 0l-1.002-4.008m-1.442-2.883l-2.004 2.004"></path></svg>'
+                    : '<svg class="w-5 h-5 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                toggleBtn.title = goal.isCompleted ? 'Mark Incomplete' : 'Mark Complete';
+                
+                const toggleBaseClasses = ['p-2', 'rounded-full', 'shadow-md', 'transition', 'duration-150'];
+                let toggleStatusClasses;
+                if (goal.isCompleted) {
+                    toggleStatusClasses = ['bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500'];
+                } else {
+                    toggleStatusClasses = ['bg-white', 'dark:bg-gray-600', 'hover:bg-gray-200', 'dark:hover:bg-gray-500', 'focus:ring-indigo-500'];
+                }
+                toggleBtn.classList.add(...toggleBaseClasses, ...toggleStatusClasses);
+                
+                toggleBtn.addEventListener('click', () => toggleGoalCompletion(goalId, goal.isCompleted));
+                actionsDiv.appendChild(toggleBtn);
+
+                mainHeader.appendChild(nameDiv);
+                mainHeader.appendChild(actionsDiv);
+                li.appendChild(mainHeader);
+
+                // --- Progress Bar (Always visible below header) ---
+                const progressBarContainer = document.createElement('div');
+                progressBarContainer.classList.add('px-4', 'mb-3');
+                progressBarContainer.innerHTML = `
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600">
+                        <div class="h-2.5 rounded-full ${goal.isCompleted ? 'bg-green-500' : 'bg-indigo-500'}" style="width: ${progress}%"></div>
+                    </div>
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 block">${progress}% complete</span>
+                `;
+                li.appendChild(progressBarContainer);
+
+                // --- Details Section (Notes and Progress Input) ---
+                const details = document.createElement('details');
+                details.classList.add('p-4', 'bg-gray-50', 'dark:bg-gray-800', 'rounded-b-xl', 'border-t', 'border-gray-200', 'dark:border-gray-700');
+                
+                // Summary/Toggle for details
+                const summary = document.createElement('summary');
+                summary.classList.add('text-sm', 'font-medium', 'text-indigo-600', 'dark:text-indigo-400', 'cursor-pointer', 'hover:text-indigo-700', 'dark:hover:text-indigo-300', 'list-none', 'focus:outline-none');
+                summary.innerHTML = '<span class="flex items-center"><svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> More Details & Notes</span>';
+                details.appendChild(summary);
+
+                // Notes Area
+                const notesLabel = document.createElement('label');
+                notesLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mt-4', 'mb-1');
+                notesLabel.textContent = 'Personal Notes';
+                details.appendChild(notesLabel);
+
+                const notesTextarea = document.createElement('textarea');
+                notesTextarea.value = notes;
+                notesTextarea.rows = 3;
+                notesTextarea.classList.add(
+                    'w-full', 'p-2', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-lg', 'bg-white', 'dark:bg-gray-700', 'dark:text-white', 'focus:ring-indigo-500', 'focus:border-indigo-500'
+                );
+                // Debounce the update slightly for performance, but trigger on change
+                notesTextarea.addEventListener('change', (e) => updateGoalField(goalId, 'notes', e.target.value));
+                details.appendChild(notesTextarea);
+
+                // Progress Input
+                const progressLabel = document.createElement('label');
+                progressLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mt-4', 'mb-1', 'flex', 'justify-between');
+                progressLabel.innerHTML = `Track Progress: <span id="progress-value-${goalId}" class="font-bold">${progress}%</span>`;
+                details.appendChild(progressLabel);
+
+                const progressInput = document.createElement('input');
+                progressInput.type = 'range';
+                progressInput.min = 0;
+                progressInput.max = 100;
+                progressInput.step = 1;
+                progressInput.value = progress;
+                progressInput.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'range-md', 'dark:bg-gray-600');
+                
+                progressInput.oninput = (e) => {
+                    document.getElementById(`progress-value-${goalId}`).textContent = `${e.target.value}%`;
+                };
+                progressInput.onchange = (e) => updateGoalField(goalId, 'progress', parseInt(e.target.value));
+                details.appendChild(progressInput);
+
+                // Delete Button inside details
+                const deleteBtnDetail = document.createElement('button');
+                deleteBtnDetail.innerHTML = 'Delete Goal Permanently';
+                deleteBtnDetail.classList.add(
+                    'mt-4', 'w-full', 'py-2', 'px-4', 'text-sm', 'font-semibold', 'rounded-lg', 'text-white', 'bg-red-500', 'hover:bg-red-600', 'transition', 'duration-150', 'focus:ring-2', 'focus:ring-red-500', 'focus:ring-offset-2', 'dark:focus:ring-offset-gray-800'
+                );
+                deleteBtnDetail.addEventListener('click', () => deleteGoal(goalId));
+                details.appendChild(deleteBtnDetail);
+
+                li.appendChild(details);
+                goalsList.appendChild(li);
+
+                // Re-display the plan if the modal is currently open for this goal
+                if (!planModal.classList.contains('hidden') && planGoalName.textContent === goal.name) {
+                    displayActionPlan(goalId, goal.plan.steps);
+                }
+            });
+        }
+
+        function listenForGoals() {
+            if (!isAuthReady || !userId) return;
+
+            const goalsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/goals`);
+
+            onSnapshot(goalsCollectionRef, (snapshot) => {
+                const goals = [];
+                snapshot.forEach(doc => {
+                    goals.push({ id: doc.id, ...doc.data() });
+                });
+                renderGoals(goals);
+            }, (error) => {
+                console.error("Error fetching goals in real-time:", error);
+                loadingIndicator.textContent = 'Error loading data.';
+                showMessage('Failed to load goals: ' + error.message, 'error');
+            });
+        }
+
+        // --- Event Listeners ---
+        newGoalForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const goalName = goalInput.value.trim();
+            if (goalName) {
+                addGoal(goalName);
+            }
+        });
+
+        // --- Start Application ---
+        initFirebase();
+    </script>
+</body>
+</html>
