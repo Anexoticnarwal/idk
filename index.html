@@ -20,9 +20,6 @@
             background-color: #4f46e5;
             border-radius: 3px;
         }
-        .message-box {
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-        }
         /* Style for the action plan modal */
         .plan-modal {
             background-color: rgba(0, 0, 0, 0.7);
@@ -103,24 +100,37 @@
         </div>
     </div>
 
-    <!-- Message Box for Custom Notifications (No alert() allowed) -->
-    <div id="message-box" class="message-box fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-xl hidden opacity-0 translate-y-2"></div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         // Import getDoc for reading document data (needed for plan updates)
         import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, setLogLevel, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL FIREBASE/APP VARIABLES ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // =========================================================================
+        // !!! IMPORTANT: CONFIGURATION REQUIRED FOR GITHUB DEPLOYMENT !!!
+        // You MUST replace the placeholder values below with your own Firebase
+        // project's configuration (from Firebase Console > Project Settings).
+        // =========================================================================
+        const APP_ID = 'your-github-app-id'; // Use a fixed string like 'goal-tracker-public'
         
-        // Gemini API configuration
-        const API_KEY = "";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        // PASTE YOUR FIREBASE CONFIG OBJECT HERE
+        const FIREBASE_CONFIG = {
+            apiKey: "YOUR_API_KEY_HERE", 
+            authDomain: "YOUR_AUTH_DOMAIN_HERE",
+            projectId: "YOUR_PROJECT_ID_HERE",
+            storageBucket: "YOUR_STORAGE_BUCKET_HERE",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
+            appId: "YOUR_APP_ID_HERE"
+        };
+        // =========================================================================
+
+        // --- LLM API configuration (OPTIONAL) ---
+        // To use the Action Plan feature, you must provide your own Gemini API key.
+        // If left as "", the Action Plan button will still appear but will show an error.
+        const GEMINI_API_KEY = ""; 
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
         const MAX_RETRIES = 5;
+
 
         let app;
         let db;
@@ -137,33 +147,27 @@
         const noGoalsMessage = document.getElementById('no-goals-message');
         const userIdDisplay = document.getElementById('user-id-display');
         const userIdValue = document.getElementById('user-id-value');
-        const messageBox = document.getElementById('message-box');
+        
         const planModal = document.getElementById('plan-modal');
         const planGoalName = document.getElementById('plan-goal-name');
         const planStepsContainer = document.getElementById('plan-steps-container');
 
-        // --- Utility Functions ---
+        // --- Utility Functions: showMessage now only uses console ---
 
         function showMessage(message, type = 'success') {
-            const colors = {
-                success: 'bg-green-500',
-                error: 'bg-red-500'
-            };
-
-            messageBox.textContent = message;
-            messageBox.className = `message-box fixed top-4 right-4 text-white p-4 rounded-lg shadow-xl opacity-100 translate-y-0 ${colors[type]}`;
-            messageBox.classList.remove('hidden');
-
-            setTimeout(() => {
-                messageBox.classList.add('opacity-0', 'translate-y-2');
-                messageBox.addEventListener('transitionend', () => {
-                    messageBox.classList.add('hidden');
-                }, { once: true });
-            }, 3000);
+            if (type === 'error') {
+                console.error("APP ERROR:", message);
+            } else {
+                // Log success/status messages silently in the console
+                console.log("APP STATUS:", message); 
+            }
         }
 
-        // --- Exponential Backoff Fetch Helper ---
+        // --- Exponential Backoff Fetch Helper (Only used for Gemini API) ---
         async function retryFetchWithExponentialBackoff(url, options, maxRetries) {
+            if (GEMINI_API_KEY === "") {
+                throw new Error("Gemini API Key is missing. Action Plan feature is disabled.");
+            }
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
@@ -188,15 +192,26 @@
         // --- Firebase Initialization and Auth ---
 
         async function initFirebase() {
+            // Check for placeholder config before attempting initialization
+            if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY_HERE" || FIREBASE_CONFIG.projectId === "YOUR_PROJECT_ID_HERE") {
+                console.error("FIREBASE CONFIGURATION MISSING. APP WILL NOT WORK.");
+                loadingIndicator.textContent = 'ERROR: Firebase configuration is missing. Please update the script.';
+                return showMessage('ERROR: Firebase Config is missing!', 'error');
+            }
+            
             try {
                 // setLogLevel('Debug'); 
-                app = initializeApp(firebaseConfig);
+                app = initializeApp(FIREBASE_CONFIG);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                
+                // Use a standard anonymous sign-in, as custom tokens are unavailable on GitHub Pages
+                await signInAnonymously(auth);
 
-                onAuthStateChanged(auth, async (user) => {
+                onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        userId = user.uid;
+                        // Use the anonymous user's UID for data isolation
+                        userId = user.uid || crypto.randomUUID(); 
                         userIdValue.textContent = userId;
                         userIdDisplay.classList.remove('hidden');
                         isAuthReady = true;
@@ -208,19 +223,14 @@
                         isAuthReady = true;
                         addButton.disabled = true;
                         userIdValue.textContent = 'Not authenticated';
-                        goalsList.innerHTML = '<p class="text-center text-red-500 py-10">Authentication failed. Please check environment configuration.</p>';
+                        goalsList.innerHTML = '<p class="text-center text-red-500 py-10">Authentication failed. Please check your Firebase configuration and rules.</p>';
                     }
                 });
 
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
             } catch (error) {
                 console.error("Firebase initialization or sign-in failed:", error);
-                loadingIndicator.textContent = 'Error loading application.';
-                showMessage('Failed to initialize: ' + error.message, 'error');
+                loadingIndicator.textContent = 'Error loading application. Check console for Firebase connection failure.';
+                showMessage('Failed to initialize Firebase: ' + error.message, 'error');
             }
         }
 
@@ -250,6 +260,10 @@
          */
         async function generateActionPlan(goalId, goalName, btn) {
             if (!isAuthReady || !userId) return;
+            if (GEMINI_API_KEY === "") {
+                showMessage("Gemini API Key is missing. Action Plan feature disabled.", 'error');
+                return;
+            }
 
             btn.disabled = true;
             btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
@@ -287,7 +301,8 @@
                 }));
 
                 // 2. Save the new plan back to the goal document
-                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, goalId);
+                // NOTE: Using APP_ID and userId for the path structure
+                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, goalId);
                 await updateDoc(goalDocRef, {
                     plan: { steps: augmentedSteps, lastGenerated: serverTimestamp() }
                 });
@@ -317,10 +332,6 @@
 
         /**
          * Shows the modal, either for loading, error, or displaying the plan.
-         * @param {string} goalName - The name of the goal.
-         * @param {string} goalId - The ID of the goal.
-         * @param {boolean} isLoading - Show loading spinner.
-         * @param {boolean} isError - Show error message.
          */
         function showPlanModal(goalName, goalId, isLoading = false, isError = false) {
             planModal.classList.remove('hidden');
@@ -334,9 +345,8 @@
                         <p>Generating a structured action plan with Gemini...</p>
                     </div>`;
             } else if (isError) {
-                planStepsContainer.innerHTML = `<p class="text-center text-red-500 p-8">Could not generate plan. Please try again or refine your goal.</p>`;
+                planStepsContainer.innerHTML = `<p class="text-center text-red-500 p-8">Could not generate plan. Please try again or refine your goal. Check if your Gemini API key is configured.</p>`;
             } else if (goalId && !isLoading && !isError) {
-                // If we have a goalId and no loading/error, it means we're ready to display a saved plan.
                 // We'll let the onSnapshot listener trigger the display (via renderGoals -> displayActionPlan).
             }
         }
@@ -384,7 +394,7 @@
         async function updateGoalField(docId, field, value) {
             if (!isAuthReady || !userId) return;
             try {
-                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
                 await updateDoc(goalDocRef, {
                     [field]: value
                 });
@@ -397,14 +407,14 @@
         async function addGoal(name) {
             if (!isAuthReady || !userId) return showMessage('Authentication not ready. Please wait a moment.', 'error');
             try {
-                const goalsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/goals`);
+                const goalsCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/goals`);
                 await addDoc(goalsCollectionRef, {
                     name: name,
                     createdAt: serverTimestamp(),
                     isCompleted: false,
-                    notes: '', // New field
-                    progress: 0, // New field
-                    plan: null, // New field for the generated plan
+                    notes: '', 
+                    progress: 0, 
+                    plan: null, 
                 });
                 goalInput.value = '';
                 showMessage('Goal added!', 'success');
@@ -417,7 +427,7 @@
         async function toggleGoalCompletion(docId, currentStatus) {
             if (!isAuthReady || !userId) return;
             try {
-                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
                 await updateDoc(goalDocRef, {
                     isCompleted: !currentStatus
                 });
@@ -430,7 +440,7 @@
         async function deleteGoal(docId) {
             if (!isAuthReady || !userId) return;
             try {
-                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, docId);
+                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
                 await deleteDoc(goalDocRef);
                 showMessage('Goal deleted.', 'success');
             } catch (e) {
@@ -445,7 +455,7 @@
         async function togglePlanStepCompletion(goalId, planStepIndex, currentStatus) {
             if (!isAuthReady || !userId) return;
             try {
-                const goalDocRef = doc(db, `artifacts/${appId}/users/${userId}/goals`, goalId);
+                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, goalId);
                 
                 // Fetch the current state to safely update the nested array
                 const docSnapshot = await getDoc(goalDocRef);
@@ -649,7 +659,8 @@
         function listenForGoals() {
             if (!isAuthReady || !userId) return;
 
-            const goalsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/goals`);
+            // NOTE: Using the hardcoded APP_ID in the path
+            const goalsCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/goals`);
 
             onSnapshot(goalsCollectionRef, (snapshot) => {
                 const goals = [];
