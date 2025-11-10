@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Goal Tracker</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Set default font to Inter and apply dark mode -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
@@ -40,12 +38,10 @@
         </h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Set a clear path to success. Your goals are saved in real-time.</p>
 
-        <!-- User ID Display (MANDATORY for multi-user apps) -->
         <div id="user-id-display" class="mb-4 p-3 text-xs bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg hidden">
             <span class="font-semibold">User ID:</span> <span id="user-id-value" class="break-all">...loading...</span>
         </div>
         
-        <!-- Goal Input Form -->
         <form id="new-goal-form" class="flex flex-col sm:flex-row gap-3 mb-8">
             <input
                 type="text"
@@ -64,9 +60,7 @@
             </button>
         </form>
 
-        <!-- Goals List Container -->
         <div class="h-96 overflow-y-auto pr-2" id="goals-list">
-            <!-- Goals will be rendered here -->
             <div id="loading-indicator" class="text-center text-gray-500 dark:text-gray-400 py-10">
                 <svg class="animate-spin h-5 w-5 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -81,7 +75,6 @@
 
     </div>
 
-    <!-- ACTION PLAN MODAL (LLM Output Display) -->
     <div id="plan-modal" class="plan-modal fixed inset-0 flex items-center justify-center p-4 hidden">
         <div class="plan-content bg-white dark:bg-gray-800 w-full max-w-lg p-6 rounded-xl shadow-2xl overflow-y-auto">
             <div class="flex justify-between items-center mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">
@@ -91,7 +84,6 @@
                 </button>
             </div>
             <div id="plan-steps-container" class="space-y-4">
-                <!-- LLM generated/saved steps will be injected here -->
                 <div class="text-center text-gray-500 dark:text-gray-400 p-8">
                     <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Generating plan...
@@ -217,6 +209,7 @@
                         isAuthReady = true;
                         addButton.disabled = false;
                         listenForGoals();
+                        setupEventListeners(); // <-- Call the new function here
                         showMessage('Goal Tracker loaded successfully!', 'success');
                     } else {
                         userId = null;
@@ -233,6 +226,25 @@
                 showMessage('Failed to initialize Firebase: ' + error.message, 'error');
             }
         }
+        
+        // --- Event Listeners Setup ---
+        
+        function setupEventListeners() {
+            // Enable/Disable Add Goal button based on input
+            goalInput.addEventListener('input', () => {
+                addButton.disabled = goalInput.value.trim() === '';
+            });
+
+            // Handle New Goal Form Submission
+            newGoalForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const goalName = goalInput.value.trim();
+                if (goalName) {
+                    addGoal(goalName);
+                }
+            });
+        }
+
 
         // --- LLM Feature: Generate Action Plan ---
 
@@ -378,7 +390,9 @@
 
                 // Add event listener to toggle step completion
                 stepElement.querySelector(`#step-${goalId}-${index}`).addEventListener('change', (e) => {
-                    togglePlanStepCompletion(goalId, index, isChecked);
+                    // Use a temporary function to correctly capture currentStatus
+                    const currentStatus = step.isCompleted || false;
+                    togglePlanStepCompletion(goalId, index, currentStatus);
                 });
 
                 planStepsContainer.appendChild(stepElement);
@@ -417,6 +431,7 @@
                     plan: null, 
                 });
                 goalInput.value = '';
+                addButton.disabled = true; // Disable button after successful add
                 showMessage('Goal added!', 'success');
             } catch (e) {
                 console.error("Error adding document: ", e);
@@ -429,7 +444,9 @@
             try {
                 const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
                 await updateDoc(goalDocRef, {
-                    isCompleted: !currentStatus
+                    isCompleted: !currentStatus,
+                    // If marking complete, set progress to 100, otherwise reset to current progress (or 0 if null)
+                    progress: !currentStatus ? 100 : (docId.progress || 0) // Progress is handled by render, not this. Just toggle.
                 });
             } catch (e) {
                 console.error("Error updating document: ", e);
@@ -539,7 +556,7 @@
                 
                 // Plan Button
                 const planBtn = document.createElement('button');
-                planBtn.innerHTML = hasPlan ? '✅ Plan' : '✨ Plan';
+                planBtn.innerHTML = hasPlan ? '<span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 0012 21a12.001 12.001 0 008.618-14.016z"></path></svg>Plan</span>' : '<span class="flex items-center">✨ Plan</span>';
                 planBtn.title = hasPlan ? 'View/Edit Action Plan' : 'Generate Action Plan using AI';
                 planBtn.classList.add(
                     'px-3', 'py-2', 'text-sm', 'font-medium', 'rounded-lg', 'shadow-sm', 'transition', 'duration-150', 'flex', 'items-center', 'justify-center', 'focus:ring-2', 'focus:ring-offset-2', 
@@ -597,94 +614,128 @@
                 
                 // Summary/Toggle for details
                 const summary = document.createElement('summary');
-                summary.classList.add('text-sm', 'font-medium', 'text-indigo-600', 'dark:text-indigo-400', 'cursor-pointer', 'hover:text-indigo-700', 'dark:hover:text-indigo-300', 'list-none', 'focus:outline-none');
-                summary.innerHTML = '<span class="flex items-center"><svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> More Details & Notes</span>';
+                summary.classList.add('text-sm', 'font-semibold', 'text-indigo-600', 'dark:text-indigo-400', 'cursor-pointer', 'select-none', 'flex', 'items-center');
+                summary.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> Goal Details';
                 details.appendChild(summary);
 
-                // Notes Area
+                const detailsContent = document.createElement('div');
+                detailsContent.classList.add('pt-4', 'space-y-4');
+
+                // 1. Notes Textarea
                 const notesLabel = document.createElement('label');
-                notesLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mt-4', 'mb-1');
-                notesLabel.textContent = 'Personal Notes';
-                details.appendChild(notesLabel);
-
+                notesLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300');
+                notesLabel.textContent = 'Notes / Milestones';
+                
                 const notesTextarea = document.createElement('textarea');
-                notesTextarea.value = notes;
-                notesTextarea.rows = 3;
                 notesTextarea.classList.add(
-                    'w-full', 'p-2', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-lg', 'bg-white', 'dark:bg-gray-700', 'dark:text-white', 'focus:ring-indigo-500', 'focus:border-indigo-500'
+                    'mt-1', 'block', 'w-full', 'p-2', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-md', 'shadow-sm', 'focus:ring-indigo-500', 'focus:border-indigo-500', 'sm:text-sm', 'bg-white', 'dark:bg-gray-700', 'dark:text-white'
                 );
-                // Debounce the update slightly for performance, but trigger on change
-                notesTextarea.addEventListener('change', (e) => updateGoalField(goalId, 'notes', e.target.value));
-                details.appendChild(notesTextarea);
+                notesTextarea.rows = 3;
+                notesTextarea.placeholder = 'Add key metrics, reminders, or progress updates...';
+                notesTextarea.value = notes;
 
-                // Progress Input
+                // Autosave notes on blur
+                notesTextarea.addEventListener('blur', (e) => {
+                    updateGoalField(goalId, 'notes', e.target.value);
+                });
+
+                detailsContent.appendChild(notesLabel);
+                detailsContent.appendChild(notesTextarea);
+
+                // 2. Progress Slider
+                const progressDiv = document.createElement('div');
+                progressDiv.classList.add('pt-2');
                 const progressLabel = document.createElement('label');
-                progressLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mt-4', 'mb-1', 'flex', 'justify-between');
-                progressLabel.innerHTML = `Track Progress: <span id="progress-value-${goalId}" class="font-bold">${progress}%</span>`;
-                details.appendChild(progressLabel);
-
+                progressLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mb-2');
+                progressLabel.innerHTML = `Current Progress: <span id="progress-value-${goalId}" class="font-bold text-indigo-600 dark:text-indigo-400">${progress}%</span>`;
+                
                 const progressInput = document.createElement('input');
                 progressInput.type = 'range';
-                progressInput.min = 0;
-                progressInput.max = 100;
-                progressInput.step = 1;
+                progressInput.min = '0';
+                progressInput.max = '100';
+                progressInput.step = '1';
                 progressInput.value = progress;
-                progressInput.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'range-md', 'dark:bg-gray-600');
+                progressInput.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'range-md', 'dark:bg-gray-700');
                 
-                progressInput.oninput = (e) => {
+                // Update percentage display while sliding
+                progressInput.addEventListener('input', (e) => {
                     document.getElementById(`progress-value-${goalId}`).textContent = `${e.target.value}%`;
-                };
-                progressInput.onchange = (e) => updateGoalField(goalId, 'progress', parseInt(e.target.value));
-                details.appendChild(progressInput);
+                });
 
-                // Delete Button inside details
-                const deleteBtnDetail = document.createElement('button');
-                deleteBtnDetail.innerHTML = 'Delete Goal Permanently';
-                deleteBtnDetail.classList.add(
-                    'mt-4', 'w-full', 'py-2', 'px-4', 'text-sm', 'font-semibold', 'rounded-lg', 'text-white', 'bg-red-500', 'hover:bg-red-600', 'transition', 'duration-150', 'focus:ring-2', 'focus:ring-red-500', 'focus:ring-offset-2', 'dark:focus:ring-offset-gray-800'
+                // Update Firestore on change (when mouse is released/focus leaves)
+                progressInput.addEventListener('change', (e) => {
+                    const newProgress = parseInt(e.target.value);
+                    updateGoalField(goalId, 'progress', newProgress);
+                    // Automatically mark complete if 100%
+                    if (newProgress === 100 && !goal.isCompleted) {
+                        toggleGoalCompletion(goalId, false);
+                    }
+                    // Automatically mark incomplete if less than 100%
+                    if (newProgress < 100 && goal.isCompleted) {
+                        toggleGoalCompletion(goalId, true);
+                    }
+                });
+
+                progressDiv.appendChild(progressLabel);
+                progressDiv.appendChild(progressInput);
+                detailsContent.appendChild(progressDiv);
+
+                // 3. Delete Button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete Goal';
+                deleteBtn.classList.add(
+                    'mt-4', 'w-full', 'px-4', 'py-2', 'text-sm', 'font-medium', 'text-red-700', 'bg-red-100', 'rounded-lg', 'hover:bg-red-200', 
+                    'dark:bg-red-900/50', 'dark:text-red-300', 'dark:hover:bg-red-900', 'transition', 'duration-150', 'focus:ring-2', 'focus:ring-red-500', 'focus:ring-offset-2'
                 );
-                deleteBtnDetail.addEventListener('click', () => deleteGoal(goalId));
-                details.appendChild(deleteBtnDetail);
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to delete the goal: "${goal.name}"?`)) {
+                        deleteGoal(goalId);
+                    }
+                });
+                detailsContent.appendChild(deleteBtn);
 
+                details.appendChild(detailsContent);
                 li.appendChild(details);
                 goalsList.appendChild(li);
-
-                // Re-display the plan if the modal is currently open for this goal
-                if (!planModal.classList.contains('hidden') && planGoalName.textContent === goal.name) {
-                    displayActionPlan(goalId, goal.plan.steps);
+                
+                // If the plan modal is currently showing this goal, re-render the steps
+                if (planModal.classList.contains('hidden') === false && planGoalName.textContent === goal.name) {
+                    if (hasPlan) {
+                         displayActionPlan(goalId, goal.plan.steps);
+                    } else {
+                        // Plan was deleted/removed, show message
+                        planStepsContainer.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400 p-8">No action plan found. Click "✨ Plan" to generate one.</p>`;
+                    }
                 }
             });
         }
 
+
+        /**
+         * Sets up the real-time listener for the user's goals collection.
+         */
         function listenForGoals() {
-            if (!isAuthReady || !userId) return;
+            if (!userId) return;
 
-            // NOTE: Using the hardcoded APP_ID in the path
+            // Define the path to the user's goals collection
             const goalsCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/goals`);
-
+            
+            // Set up real-time listener
             onSnapshot(goalsCollectionRef, (snapshot) => {
                 const goals = [];
-                snapshot.forEach(doc => {
+                snapshot.forEach((doc) => {
+                    // Include the document ID with the data
                     goals.push({ id: doc.id, ...doc.data() });
                 });
                 renderGoals(goals);
             }, (error) => {
-                console.error("Error fetching goals in real-time:", error);
-                loadingIndicator.textContent = 'Error loading data.';
-                showMessage('Failed to load goals: ' + error.message, 'error');
+                console.error("Firestore Listener Error: ", error);
+                loadingIndicator.textContent = 'Error fetching goals. Check console for details.';
+                showMessage('Error fetching goals: ' + error.message, 'error');
             });
         }
 
-        // --- Event Listeners ---
-        newGoalForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const goalName = goalInput.value.trim();
-            if (goalName) {
-                addGoal(goalName);
-            }
-        });
-
-        // --- Start Application ---
+        // --- Application Start ---
         initFirebase();
     </script>
 </body>
