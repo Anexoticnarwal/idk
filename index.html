@@ -3,740 +3,492 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal Goal Tracker</title>
+    <title>Personal Goal Dashboard</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        /* Custom styles for appearance */
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
         }
-        /* Custom scrollbar styling for a sleeker look */
-        #goals-list::-webkit-scrollbar {
-            width: 6px;
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
         }
-        #goals-list::-webkit-scrollbar-thumb {
-            background-color: #4f46e5;
-            border-radius: 3px;
+        .goal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
         }
-        /* Style for the action plan modal */
-        .plan-modal {
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 50;
+        /* Custom scrollbar for better visual on dark panels */
+        .subtask-list::-webkit-scrollbar {
+            width: 8px;
         }
-        .plan-content {
-            max-height: 90vh;
+        .subtask-list::-webkit-scrollbar-thumb {
+            background-color: #9ca3af;
+            border-radius: 4px;
+        }
+        .subtask-list::-webkit-scrollbar-track {
+            background-color: #1f2937;
         }
     </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex items-start justify-center p-4 sm:p-8">
+<body class="min-h-screen">
 
-    <div class="w-full max-w-2xl bg-white dark:bg-gray-800 shadow-2xl rounded-xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700 mt-10">
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2 flex items-center">
+                <i data-lucide="target" class="w-8 h-8 mr-3 text-indigo-600"></i>
+                Future Vision Dashboard
+            </h1>
+            <p class="text-gray-600">Set, track, and visualize your personal projects and goals.</p>
+        </header>
 
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white mb-2 flex items-center">
-            <svg class="w-8 h-8 mr-3 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 0012 21a12.001 12.001 0 008.618-14.016z"></path></svg>
-            Personal Goals
-        </h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Set a clear path to success. Your goals are saved in real-time.</p>
+        <!-- Goal Creation Section -->
+        <section class="mb-10 bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Add a New Goal</h2>
+            <form id="goal-form" class="space-y-4">
+                <div>
+                    <label for="goal-title" class="block text-sm font-medium text-gray-700">Goal Title</label>
+                    <input type="text" id="goal-title" required placeholder="e.g., Learn React Native for Mobile Development" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 border">
+                </div>
+                <div>
+                    <label for="goal-tasks" class="block text-sm font-medium text-gray-700">Actionable Steps (One per line)</label>
+                    <textarea id="goal-tasks" required rows="4" placeholder="e.g.,&#10;Complete Udemy course on React Native&#10;Build a simple calculator app&#10;Publish app to app store" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-3 border"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">These will be the individual items you track for progress.</p>
+                </div>
+                <button type="submit" class="w-full sm:w-auto flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                    Create Goal
+                </button>
+            </form>
+        </section>
 
-        <div id="user-id-display" class="mb-4 p-3 text-xs bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg hidden">
-            <span class="font-semibold">User ID:</span> <span id="user-id-value" class="break-all">...loading...</span>
-        </div>
-        
-        <form id="new-goal-form" class="flex flex-col sm:flex-row gap-3 mb-8">
-            <input
-                type="text"
-                id="goal-input"
-                placeholder="What is your next goal? (e.g., Run a 5k)"
-                required
-                class="flex-grow p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50 dark:bg-gray-700 dark:text-white text-gray-900 transition duration-150 ease-in-out shadow-sm"
-            >
-            <button
-                type="submit"
-                id="add-goal-button"
-                class="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition duration-150 ease-in-out shadow-md hover:shadow-lg disabled:opacity-50"
-                disabled
-            >
-                Add Goal
-            </button>
-        </form>
-
-        <div class="h-96 overflow-y-auto pr-2" id="goals-list">
-            <div id="loading-indicator" class="text-center text-gray-500 dark:text-gray-400 py-10">
-                <svg class="animate-spin h-5 w-5 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Loading goals...
+        <!-- Goal Dashboard -->
+        <section>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Active Goals</h2>
+            <div id="goals-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Goals will be rendered here by JavaScript -->
+                <p id="empty-state" class="text-gray-500 italic col-span-full hidden">You haven't added any goals yet. Start tracking your future!</p>
             </div>
-            <p id="no-goals-message" class="text-center text-gray-500 dark:text-gray-400 py-10 hidden">
-                You haven't set any goals yet. Start your journey!
-            </p>
-        </div>
+        </section>
 
     </div>
 
-    <div id="plan-modal" class="plan-modal fixed inset-0 flex items-center justify-center p-4 hidden">
-        <div class="plan-content bg-white dark:bg-gray-800 w-full max-w-lg p-6 rounded-xl shadow-2xl overflow-y-auto">
-            <div class="flex justify-between items-center mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">
-                <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Action Plan for: <span id="plan-goal-name" class="text-gray-900 dark:text-white"></span></h2>
-                <button onclick="hidePlanModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    <!-- Edit/Progress Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden transition-opacity duration-300 items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all sm:max-w-xl">
+            <!-- Modal Header -->
+            <div class="bg-gray-800 p-6 text-white flex justify-between items-center">
+                <h3 id="modal-title" class="text-xl font-bold truncate">Goal Details</h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition duration-150">
+                    <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
-            <div id="plan-steps-container" class="space-y-4">
-                <div class="text-center text-gray-500 dark:text-gray-400 p-8">
-                    <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Generating plan...
+
+            <!-- Modal Body: Progress and Subtasks -->
+            <div class="p-6">
+                <div class="mb-6">
+                    <h4 class="text-lg font-medium text-gray-700 mb-2">Current Progress</h4>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div id="modal-progress-bar" class="progress-bar h-3 rounded-full bg-indigo-500" style="width: 0%"></div>
+                    </div>
+                    <p id="modal-progress-text" class="text-sm font-semibold text-gray-600 mt-2">0% Complete</p>
                 </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-medium text-gray-700 mb-3">Actionable Steps</h4>
+                    <div id="modal-subtasks-container" class="space-y-3 max-h-64 overflow-y-auto subtask-list p-2 rounded-lg bg-gray-50 border border-gray-200">
+                        <!-- Subtasks will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="deleteCurrentGoal()" class="flex items-center rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-600 transition duration-150 ease-in-out">
+                    <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                    Delete Goal
+                </button>
             </div>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Import getDoc for reading document data (needed for plan updates)
-        import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, setLogLevel, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        "use strict"; // Added strict mode for cleaner JS
 
-        // =========================================================================
-        // !!! IMPORTANT: CONFIGURATION REQUIRED FOR GITHUB DEPLOYMENT !!!
-        // You MUST replace the placeholder values below with your own Firebase
-        // project's configuration (from Firebase Console > Project Settings).
-        // =========================================================================
-        const APP_ID = 'your-github-app-id'; // Use a fixed string like 'goal-tracker-public'
-        
-        // PASTE YOUR FIREBASE CONFIG OBJECT HERE
-        const FIREBASE_CONFIG = {
-            apiKey: "YOUR_API_KEY_HERE", 
-            authDomain: "YOUR_AUTH_DOMAIN_HERE",
-            projectId: "YOUR_PROJECT_ID_HERE",
-            storageBucket: "YOUR_STORAGE_BUCKET_HERE",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
-            appId: "YOUR_APP_ID_HERE"
-        };
-        // =========================================================================
+        // --- DATA MANAGEMENT & UTILITIES ---
 
-        // --- LLM API configuration (OPTIONAL) ---
-        // To use the Action Plan feature, you must provide your own Gemini API key.
-        // If left as "", the Action Plan button will still appear but will show an error.
-        const GEMINI_API_KEY = ""; 
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
-        const MAX_RETRIES = 5;
+        let goals = [];
+        let activeGoalId = null; // Used by the modal to track the goal being edited
+        const GOALS_STORAGE_KEY = 'personalGoalsDashboardData';
 
+        /**
+         * Generates a simple unique ID.
+         * @returns {string}
+         */
+        const generateId = () => crypto.randomUUID();
 
-        let app;
-        let db;
-        let auth;
-        let userId = null;
-        let isAuthReady = false;
-
-        // --- DOM Elements ---
-        const goalsList = document.getElementById('goals-list');
-        const goalInput = document.getElementById('goal-input');
-        const newGoalForm = document.getElementById('new-goal-form');
-        const addButton = document.getElementById('add-goal-button');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const noGoalsMessage = document.getElementById('no-goals-message');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const userIdValue = document.getElementById('user-id-value');
-        
-        const planModal = document.getElementById('plan-modal');
-        const planGoalName = document.getElementById('plan-goal-name');
-        const planStepsContainer = document.getElementById('plan-steps-container');
-
-        // --- Utility Functions: showMessage now only uses console ---
-
-        function showMessage(message, type = 'success') {
-            if (type === 'error') {
-                console.error("APP ERROR:", message);
-            } else {
-                // Log success/status messages silently in the console
-                console.log("APP STATUS:", message); 
-            }
-        }
-
-        // --- Exponential Backoff Fetch Helper (Only used for Gemini API) ---
-        async function retryFetchWithExponentialBackoff(url, options, maxRetries) {
-            if (GEMINI_API_KEY === "") {
-                throw new Error("Gemini API Key is missing. Action Plan feature is disabled.");
-            }
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.status === 429 || response.status >= 500) {
-                        throw new Error(`Retryable error: Status ${response.status}`);
-                    }
-                    if (!response.ok) {
-                        const errorBody = await response.json();
-                        throw new Error(`API Error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
-                    }
-                    return response.json();
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error;
-                    }
-                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-        
-        // --- Firebase Initialization and Auth ---
-
-        async function initFirebase() {
-            // Check for placeholder config before attempting initialization
-            if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY_HERE" || FIREBASE_CONFIG.projectId === "YOUR_PROJECT_ID_HERE") {
-                console.error("FIREBASE CONFIGURATION MISSING. APP WILL NOT WORK.");
-                loadingIndicator.textContent = 'ERROR: Firebase configuration is missing. Please update the script.';
-                return showMessage('ERROR: Firebase Config is missing!', 'error');
-            }
-            
+        /**
+         * Loads goals from localStorage.
+         * @returns {Array}
+         */
+        const loadGoals = () => {
+            const data = localStorage.getItem(GOALS_STORAGE_KEY);
             try {
-                // setLogLevel('Debug'); 
-                app = initializeApp(FIREBASE_CONFIG);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // Use a standard anonymous sign-in, as custom tokens are unavailable on GitHub Pages
-                await signInAnonymously(auth);
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        // Use the anonymous user's UID for data isolation
-                        userId = user.uid || crypto.randomUUID(); 
-                        userIdValue.textContent = userId;
-                        userIdDisplay.classList.remove('hidden');
-                        isAuthReady = true;
-                        addButton.disabled = false;
-                        listenForGoals();
-                        setupEventListeners(); // <-- Call the new function here
-                        showMessage('Goal Tracker loaded successfully!', 'success');
-                    } else {
-                        userId = null;
-                        isAuthReady = true;
-                        addButton.disabled = true;
-                        userIdValue.textContent = 'Not authenticated';
-                        goalsList.innerHTML = '<p class="text-center text-red-500 py-10">Authentication failed. Please check your Firebase configuration and rules.</p>';
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization or sign-in failed:", error);
-                loadingIndicator.textContent = 'Error loading application. Check console for Firebase connection failure.';
-                showMessage('Failed to initialize Firebase: ' + error.message, 'error');
+                goals = data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error("Error parsing goals from localStorage:", e);
+                goals = [];
             }
-        }
-        
-        // --- Event Listeners Setup ---
-        
-        function setupEventListeners() {
-            // Enable/Disable Add Goal button based on input
-            goalInput.addEventListener('input', () => {
-                addButton.disabled = goalInput.value.trim() === '';
-            });
-
-            // Handle New Goal Form Submission
-            newGoalForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const goalName = goalInput.value.trim();
-                if (goalName) {
-                    addGoal(goalName);
-                }
-            });
-        }
-
-
-        // --- LLM Feature: Generate Action Plan ---
-
-        const actionPlanSchema = {
-            type: "OBJECT",
-            properties: {
-                "steps": {
-                    "type": "ARRAY",
-                    "description": "A list of 5 to 7 highly actionable steps to achieve the user's goal.",
-                    "items": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "stepDescription": { "type": "STRING", "description": "The specific, concise, and measurable action to take." },
-                            "suggestedPriority": { "type": "STRING", "description": "High, Medium, or Low, based on impact." }
-                        },
-                        "required": ["stepDescription", "suggestedPriority"]
-                    }
-                }
-            },
-            required: ["steps"]
         };
 
         /**
-         * Calls the Gemini API to generate a structured action plan for a given goal.
+         * Saves current goals array to localStorage.
          */
-        async function generateActionPlan(goalId, goalName, btn) {
-            if (!isAuthReady || !userId) return;
-            if (GEMINI_API_KEY === "") {
-                showMessage("Gemini API Key is missing. Action Plan feature disabled.", 'error');
+        const saveGoals = () => {
+            localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
+            renderGoals();
+        };
+
+        /**
+         * Calculates the progress percentage of a single goal.
+         * @param {Object} goal
+         * @returns {number} Percentage (0-100)
+         */
+        const calculateProgress = (goal) => {
+            if (!goal.subtasks || goal.subtasks.length === 0) return 0;
+            const completedCount = goal.subtasks.filter(task => task.completed).length;
+            return Math.round((completedCount / goal.subtasks.length) * 100);
+        };
+
+        // --- UI RENDERING ---
+
+        /**
+         * Renders all goal cards to the main dashboard.
+         */
+        const renderGoals = () => {
+            const container = document.getElementById('goals-container');
+            const emptyState = document.getElementById('empty-state');
+
+            // CRITICAL FIX: Ensure elements exist before trying to access their classList/innerHTML
+            if (!container || !emptyState) {
+                console.error("Goal Dashboard Error: Required DOM elements (goals-container or empty-state) missing.");
+                return; 
+            }
+            
+            container.innerHTML = '';
+
+            if (goals.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            goals.forEach(goal => {
+                const progress = calculateProgress(goal);
+                const color = progress === 100 ? 'bg-green-500' : 'bg-indigo-500';
+
+                const goalCard = `
+                    <div class="goal-card bg-white p-6 rounded-xl shadow-md border border-gray-200 transform transition duration-200 cursor-pointer" onclick="openEditModal('${goal.id}')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-bold text-gray-900 truncate pr-4">${goal.title}</h3>
+                            <span class="text-sm font-semibold ${progress === 100 ? 'text-green-600' : 'text-indigo-600'}">${progress}%</span>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-3">
+                            <div class="progress-bar h-2 rounded-full ${color}" style="width: ${progress}%"></div>
+                        </div>
+
+                        <!-- Subtask Summary -->
+                        <p class="text-sm text-gray-500">
+                            ${goal.subtasks.filter(task => task.completed).length} of ${goal.subtasks.length} steps completed
+                        </p>
+
+                        <div class="mt-4 flex justify-between items-center text-sm text-gray-400">
+                            <i data-lucide="list-checks" class="w-4 h-4"></i>
+                            <span class="text-xs">Click to view/update steps</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += goalCard;
+            });
+
+            // Re-render Lucide icons for the newly created HTML
+            lucide.createIcons();
+        };
+
+        /**
+         * Renders the subtasks inside the modal.
+         * @param {Object} goal
+         */
+        const renderSubtasksInModal = (goal) => {
+            const container = document.getElementById('modal-subtasks-container');
+            if (!container) return; // Null check for modal container
+
+            container.innerHTML = '';
+
+            goal.subtasks.forEach(task => {
+                const checked = task.completed ? 'checked' : '';
+                const taskClass = task.completed ? 'line-through text-gray-400' : 'text-gray-800';
+
+                const subtaskHTML = `
+                    <div class="flex items-center p-3 rounded-lg bg-white shadow-sm border border-gray-200">
+                        <input type="checkbox" id="task-${task.id}" ${checked} 
+                               onclick="toggleSubtask('${goal.id}', '${task.id}')"
+                               class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                        <label for="task-${task.id}" class="ml-3 block text-base font-medium ${taskClass} flex-1 cursor-pointer">
+                            ${task.text}
+                        </label>
+                    </div>
+                `;
+                container.innerHTML += subtaskHTML;
+            });
+        };
+
+        // --- MODAL LOGIC ---
+
+        /**
+         * Opens the modal to view and update progress for a specific goal.
+         * @param {string} id - The ID of the goal to edit.
+         */
+        const openEditModal = (id) => {
+            const goal = goals.find(g => g.id === id);
+            const modal = document.getElementById('edit-modal');
+            if (!goal || !modal) return;
+
+            activeGoalId = id;
+            const progress = calculateProgress(goal);
+
+            document.getElementById('modal-title').textContent = goal.title;
+            
+            const progressBar = document.getElementById('modal-progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+                progressBar.classList.toggle('bg-green-500', progress === 100);
+                progressBar.classList.toggle('bg-indigo-500', progress !== 100);
+            }
+            
+            document.getElementById('modal-progress-text').textContent = `${progress}% Complete`;
+
+            renderSubtasksInModal(goal);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        /**
+         * Closes the edit modal.
+         */
+        window.closeEditModal = () => {
+            const modal = document.getElementById('edit-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                activeGoalId = null;
+            }
+        };
+
+        // --- GOAL ACTIONS ---
+
+        /**
+         * Handles the form submission to create a new goal.
+         * @param {Event} event
+         */
+        const handleAddGoal = (event) => {
+            event.preventDefault();
+
+            const titleInput = document.getElementById('goal-title');
+            const tasksTextarea = document.getElementById('goal-tasks');
+            
+            if (!titleInput || !tasksTextarea) return;
+
+            const title = titleInput.value.trim();
+            const tasksText = tasksTextarea.value.trim();
+
+            if (!title || !tasksText) return;
+
+            // Split tasks by line, filter out empty lines, and map to subtask objects
+            const subtasks = tasksText.split('\n')
+                                      .map(line => line.trim())
+                                      .filter(line => line.length > 0)
+                                      .map(text => ({
+                                          id: generateId(),
+                                          text: text,
+                                          completed: false
+                                      }));
+
+            if (subtasks.length === 0) {
+                // Use custom modal for error message (compliant with no-alert rule)
+                showConfirmationModal(
+                    'Input Error',
+                    'Please enter at least one actionable step for your goal.',
+                    closeConfirmationModal, // Callback simply closes the modal
+                    'Okay'
+                );
                 return;
             }
 
-            btn.disabled = true;
-            btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-            showPlanModal(goalName, null, true); // Show loading modal
+            const newGoal = {
+                id: generateId(),
+                title: title,
+                createdAt: new Date().toISOString(),
+                subtasks: subtasks
+            };
 
-            const systemPrompt = "You are a specialized productivity and goal-setting assistant. Your task is to analyze the user's goal and provide a structured action plan consisting of 5 to 7 specific, actionable, and logical steps. Categorize each step by suggested priority (High, Medium, or Low). Do not include any introductory or concluding text, only the JSON object.";
-            const userQuery = `Create an action plan for this goal: "${goalName}"`;
+            goals.push(newGoal);
+            saveGoals();
 
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: actionPlanSchema,
-                    tools: [{ "google_search": {} }],
+            // Reset form
+            document.getElementById('goal-form').reset();
+        };
+
+        /**
+         * Toggles the completion status of a subtask.
+         * @param {string} goalId
+         * @param {string} taskId
+         */
+        window.toggleSubtask = (goalId, taskId) => {
+            const goalIndex = goals.findIndex(g => g.id === goalId);
+
+            if (goalIndex !== -1) {
+                const taskIndex = goals[goalIndex].subtasks.findIndex(t => t.id === taskId);
+
+                if (taskIndex !== -1) {
+                    goals[goalIndex].subtasks[taskIndex].completed = !goals[goalIndex].subtasks[taskIndex].completed;
+
+                    saveGoals();
+
+                    // Re-render modal content immediately to show change
+                    openEditModal(goalId);
+                }
+            }
+        };
+        
+        /**
+         * Deletes the currently active goal.
+         */
+        window.deleteCurrentGoal = () => {
+            if (activeGoalId) {
+                // Use custom modal replacement for confirmation
+                showConfirmationModal(
+                    'Confirm Deletion', 
+                    'Are you sure you want to permanently delete this goal? This action cannot be undone.', 
+                    () => {
+                        goals = goals.filter(g => g.id !== activeGoalId);
+                        saveGoals();
+                        closeEditModal();
+                        closeConfirmationModal();
+                    },
+                    'Delete'
+                );
+            }
+        };
+
+        // --- APP INITIALIZATION ---
+
+        /**
+         * Initializes the application.
+         */
+        const initApp = () => {
+            loadGoals();
+            renderGoals();
+
+            // Set up form listener
+            document.getElementById('goal-form')?.addEventListener('submit', handleAddGoal);
+            
+            // Render all Lucide icons on the page
+            lucide.createIcons();
+
+            // Attach a simple confirmation modal to the body
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 hidden items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div class="p-6">
+                            <h3 id="confirm-title" class="text-lg font-bold text-gray-900 mb-2"></h3>
+                            <p id="confirm-message" class="text-sm text-gray-600 mb-6"></p>
+                            <div class="flex justify-end space-x-3">
+                                <button id="cancel-button" onclick="closeConfirmationModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                                <!-- Button styles and text are set dynamically in showConfirmationModal -->
+                                <button id="confirm-button" class="px-4 py-2 text-sm font-medium text-white rounded-lg transition duration-150"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+        };
+
+        // --- CUSTOM CONFIRMATION MODAL (Replaces alert/confirm) ---
+
+        let confirmCallback = null;
+
+        /**
+         * Shows the confirmation modal.
+         * @param {string} title - The title of the modal.
+         * @param {string} message - The confirmation message.
+         * @param {function} callback - Function to execute on confirmation.
+         * @param {string} [confirmText='Confirm'] - Text for the confirmation button.
+         */
+        const showConfirmationModal = (title, message, callback, confirmText = 'Confirm') => {
+            const modal = document.getElementById('confirmation-modal');
+            const titleEl = document.getElementById('confirm-title');
+            const messageEl = document.getElementById('confirm-message');
+            const confirmBtn = document.getElementById('confirm-button');
+
+            if (!modal || !titleEl || !messageEl || !confirmBtn) {
+                console.error("Confirmation Modal elements missing.");
+                return;
+            }
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            confirmCallback = callback;
+            confirmBtn.textContent = confirmText; // Set button text
+
+            // Dynamic color adjustment
+            const isDestructive = confirmText.toLowerCase() === 'delete';
+            confirmBtn.classList.toggle('bg-red-600', isDestructive);
+            confirmBtn.classList.toggle('hover:bg-red-700', isDestructive);
+            confirmBtn.classList.toggle('bg-indigo-600', !isDestructive);
+            confirmBtn.classList.toggle('hover:bg-indigo-700', !isDestructive);
+
+            confirmBtn.onclick = () => {
+                if (confirmCallback) {
+                    confirmCallback();
                 }
             };
 
-            try {
-                const result = await retryFetchWithExponentialBackoff(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }, MAX_RETRIES);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
 
-                const jsonString = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!jsonString) throw new Error("API returned no content.");
-                
-                const planData = JSON.parse(jsonString);
-                
-                // 1. Augment plan steps with isCompleted status for saving
-                const augmentedSteps = planData.steps.map(step => ({
-                    ...step,
-                    isCompleted: false 
-                }));
-
-                // 2. Save the new plan back to the goal document
-                // NOTE: Using APP_ID and userId for the path structure
-                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, goalId);
-                await updateDoc(goalDocRef, {
-                    plan: { steps: augmentedSteps, lastGenerated: serverTimestamp() }
-                });
-
-                showMessage('Action Plan Generated and Saved!', 'success');
-                // The onSnapshot listener will trigger displayActionPlan via renderGoals
-            } catch (error) {
-                console.error("Gemini API Error:", error);
-                showMessage('Failed to generate action plan: ' + error.message, 'error');
-                showPlanModal(goalName, null, false, true); // Show error in modal
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '✨ Plan'; // Restore button text
+        window.closeConfirmationModal = () => {
+            const modal = document.getElementById('confirmation-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                confirmCallback = null;
             }
-        }
+        };
 
-        // --- Modal Display Logic ---
-        
-        function getPriorityColor(priority) {
-            switch (priority?.toLowerCase()) {
-                case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-                case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-                case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-                default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-            }
-        }
+        // Start the application when the window loads
+        window.onload = initApp;
 
-        /**
-         * Shows the modal, either for loading, error, or displaying the plan.
-         */
-        function showPlanModal(goalName, goalId, isLoading = false, isError = false) {
-            planModal.classList.remove('hidden');
-            planGoalName.textContent = goalName;
-            planStepsContainer.innerHTML = '';
-            
-            if (isLoading) {
-                planStepsContainer.innerHTML = `
-                    <div class="text-center text-gray-500 dark:text-gray-400 p-8">
-                        <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p>Generating a structured action plan with Gemini...</p>
-                    </div>`;
-            } else if (isError) {
-                planStepsContainer.innerHTML = `<p class="text-center text-red-500 p-8">Could not generate plan. Please try again or refine your goal. Check if your Gemini API key is configured.</p>`;
-            } else if (goalId && !isLoading && !isError) {
-                // We'll let the onSnapshot listener trigger the display (via renderGoals -> displayActionPlan).
-            }
-        }
-
-        function hidePlanModal() {
-            planModal.classList.add('hidden');
-        }
-        window.hidePlanModal = hidePlanModal; 
-
-        function displayActionPlan(goalId, steps) {
-            planStepsContainer.innerHTML = '';
-            
-            steps.forEach((step, index) => {
-                const priorityClass = getPriorityColor(step.suggestedPriority);
-                const isChecked = step.isCompleted || false;
-                
-                const stepElement = document.createElement('div');
-                stepElement.classList.add('p-4', 'bg-gray-50', 'dark:bg-gray-700', 'rounded-lg', 'shadow-sm', 'flex', 'items-start', 'space-x-3', 'transition', 'duration-200', isChecked ? 'opacity-70' : '');
-                
-                stepElement.innerHTML = `
-                    <div class="flex-shrink-0 pt-1">
-                        <input type="checkbox" id="step-${goalId}-${index}" class="form-checkbox h-5 w-5 text-indigo-600 rounded" ${isChecked ? 'checked' : ''}>
-                    </div>
-                    <div class="flex-grow">
-                        <label for="step-${goalId}-${index}" class="text-gray-900 dark:text-gray-100 font-medium cursor-pointer ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : ''}">${step.stepDescription}</label>
-                        <span class="text-xs font-semibold px-2 py-0.5 mt-1 rounded-full inline-block ${priorityClass}">${step.suggestedPriority || 'N/A'} Priority</span>
-                    </div>
-                `;
-
-                // Add event listener to toggle step completion
-                stepElement.querySelector(`#step-${goalId}-${index}`).addEventListener('change', (e) => {
-                    // Use a temporary function to correctly capture currentStatus
-                    const currentStatus = step.isCompleted || false;
-                    togglePlanStepCompletion(goalId, index, currentStatus);
-                });
-
-                planStepsContainer.appendChild(stepElement);
-            });
-        }
-
-
-        // --- Firestore Data Operations ---
-
-        /**
-         * Generic function to update a single field (notes, progress) on a goal.
-         */
-        async function updateGoalField(docId, field, value) {
-            if (!isAuthReady || !userId) return;
-            try {
-                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
-                await updateDoc(goalDocRef, {
-                    [field]: value
-                });
-            } catch (e) {
-                console.error(`Error updating ${field} for document ${docId}: `, e);
-                showMessage(`Error updating ${field}: ` + e.message, 'error');
-            }
-        }
-
-        async function addGoal(name) {
-            if (!isAuthReady || !userId) return showMessage('Authentication not ready. Please wait a moment.', 'error');
-            try {
-                const goalsCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/goals`);
-                await addDoc(goalsCollectionRef, {
-                    name: name,
-                    createdAt: serverTimestamp(),
-                    isCompleted: false,
-                    notes: '', 
-                    progress: 0, 
-                    plan: null, 
-                });
-                goalInput.value = '';
-                addButton.disabled = true; // Disable button after successful add
-                showMessage('Goal added!', 'success');
-            } catch (e) {
-                console.error("Error adding document: ", e);
-                showMessage('Error adding goal. Check console for details.', 'error');
-            }
-        }
-
-        async function toggleGoalCompletion(docId, currentStatus) {
-            if (!isAuthReady || !userId) return;
-            try {
-                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
-                await updateDoc(goalDocRef, {
-                    isCompleted: !currentStatus,
-                    // If marking complete, set progress to 100, otherwise reset to current progress (or 0 if null)
-                    progress: !currentStatus ? 100 : (docId.progress || 0) // Progress is handled by render, not this. Just toggle.
-                });
-            } catch (e) {
-                console.error("Error updating document: ", e);
-                showMessage('Error updating goal status: ' + e.message, 'error');
-            }
-        }
-
-        async function deleteGoal(docId) {
-            if (!isAuthReady || !userId) return;
-            try {
-                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, docId);
-                await deleteDoc(goalDocRef);
-                showMessage('Goal deleted.', 'success');
-            } catch (e) {
-                console.error("Error deleting document: ", e);
-                showMessage('Error deleting goal: ' + e.message, 'error');
-            }
-        }
-        
-        /**
-         * Toggles the completion status of an individual step in the saved action plan.
-         */
-        async function togglePlanStepCompletion(goalId, planStepIndex, currentStatus) {
-            if (!isAuthReady || !userId) return;
-            try {
-                const goalDocRef = doc(db, `artifacts/${APP_ID}/users/${userId}/goals`, goalId);
-                
-                // Fetch the current state to safely update the nested array
-                const docSnapshot = await getDoc(goalDocRef);
-                if (!docSnapshot.exists() || !docSnapshot.data().plan) return;
-                
-                const goalData = docSnapshot.data();
-                const currentPlanSteps = goalData.plan.steps;
-                
-                if (currentPlanSteps[planStepIndex]) {
-                    // Update the specific step's completion status
-                    currentPlanSteps[planStepIndex].isCompleted = !currentStatus;
-                    
-                    // Update Firestore with the modified plan array
-                    await updateDoc(goalDocRef, {
-                        'plan.steps': currentPlanSteps
-                    });
-                    // The onSnapshot listener handles refreshing the modal automatically
-                }
-            } catch (e) {
-                console.error("Error toggling plan step: ", e);
-                showMessage('Error updating step status: ' + e.message, 'error');
-            }
-        }
-
-
-        // --- Goal Rendering and Real-time Listener (Updated) ---
-
-        /**
-         * Renders the list of goals.
-         * @param {Array<Object>} goals Array of goal objects.
-         */
-        function renderGoals(goals) {
-            goalsList.innerHTML = '';
-            loadingIndicator.classList.add('hidden');
-            noGoalsMessage.classList.add('hidden');
-
-            if (goals.length === 0) {
-                noGoalsMessage.classList.remove('hidden');
-                return;
-            }
-
-            goals.sort((a, b) => {
-                const timeA = a.createdAt?.toMillis() || 0;
-                const timeB = b.createdAt?.toMillis() || 0;
-                return timeB - timeA; // Sort newest first
-            });
-
-            goals.forEach(goal => {
-                const goalId = goal.id;
-                const progress = goal.progress || 0;
-                const notes = goal.notes || '';
-                const hasPlan = !!goal.plan && goal.plan.steps?.length > 0;
-                
-                const li = document.createElement('div');
-
-                const baseClasses = [
-                    'p-0', 'mb-3', 'rounded-xl', 'transition', 'duration-200', 'ease-in-out', 'shadow-lg'
-                ];
-                
-                let statusClasses;
-                if (goal.isCompleted) {
-                    statusClasses = ['bg-green-100', 'dark:bg-green-900/50', 'border-2', 'border-green-500'];
-                } else {
-                    statusClasses = ['bg-white', 'dark:bg-gray-700', 'hover:bg-gray-100', 'dark:hover:bg-gray-600', 'border', 'border-indigo-200', 'dark:border-indigo-900'];
-                }
-                li.classList.add(...baseClasses, ...statusClasses);
-
-                // --- Main Goal Header (Always visible) ---
-                const mainHeader = document.createElement('div');
-                mainHeader.classList.add('flex', 'items-center', 'justify-between', 'p-4', 'pb-3');
-                
-                const nameDiv = document.createElement('div');
-                nameDiv.classList.add('flex-grow', 'mr-4', 'text-gray-900', 'dark:text-white', 'break-words', 'text-lg', 'font-semibold');
-                nameDiv.textContent = goal.name;
-                if (goal.isCompleted) {
-                    nameDiv.classList.add('line-through', 'text-gray-500', 'dark:text-gray-400', 'italic');
-                }
-
-                const actionsDiv = document.createElement('div');
-                actionsDiv.classList.add('flex', 'space-x-2', 'shrink-0');
-                
-                // Plan Button
-                const planBtn = document.createElement('button');
-                planBtn.innerHTML = hasPlan ? '<span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 0012 21a12.001 12.001 0 008.618-14.016z"></path></svg>Plan</span>' : '<span class="flex items-center">✨ Plan</span>';
-                planBtn.title = hasPlan ? 'View/Edit Action Plan' : 'Generate Action Plan using AI';
-                planBtn.classList.add(
-                    'px-3', 'py-2', 'text-sm', 'font-medium', 'rounded-lg', 'shadow-sm', 'transition', 'duration-150', 'flex', 'items-center', 'justify-center', 'focus:ring-2', 'focus:ring-offset-2', 
-                    hasPlan ? 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 dark:focus:ring-offset-gray-700' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 focus:ring-indigo-500 dark:bg-indigo-900/50 dark:text-indigo-300'
-                );
-                planBtn.addEventListener('click', () => {
-                    if (!hasPlan) {
-                        generateActionPlan(goalId, goal.name, planBtn);
-                    } else {
-                        // If plan exists, show the modal with the saved data
-                        showPlanModal(goal.name, goalId);
-                        displayActionPlan(goalId, goal.plan.steps);
-                    }
-                });
-                actionsDiv.appendChild(planBtn);
-
-
-                // Toggle Button
-                const toggleBtn = document.createElement('button');
-                toggleBtn.innerHTML = goal.isCompleted
-                    ? '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0012 4.041a8 8 0 00-7.854 7.747m0 0a8 8 0 0115.708 0l-1.002-4.008m-1.442-2.883l-2.004 2.004"></path></svg>'
-                    : '<svg class="w-5 h-5 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-                toggleBtn.title = goal.isCompleted ? 'Mark Incomplete' : 'Mark Complete';
-                
-                const toggleBaseClasses = ['p-2', 'rounded-full', 'shadow-md', 'transition', 'duration-150'];
-                let toggleStatusClasses;
-                if (goal.isCompleted) {
-                    toggleStatusClasses = ['bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500'];
-                } else {
-                    toggleStatusClasses = ['bg-white', 'dark:bg-gray-600', 'hover:bg-gray-200', 'dark:hover:bg-gray-500', 'focus:ring-indigo-500'];
-                }
-                toggleBtn.classList.add(...toggleBaseClasses, ...toggleStatusClasses);
-                
-                toggleBtn.addEventListener('click', () => toggleGoalCompletion(goalId, goal.isCompleted));
-                actionsDiv.appendChild(toggleBtn);
-
-                mainHeader.appendChild(nameDiv);
-                mainHeader.appendChild(actionsDiv);
-                li.appendChild(mainHeader);
-
-                // --- Progress Bar (Always visible below header) ---
-                const progressBarContainer = document.createElement('div');
-                progressBarContainer.classList.add('px-4', 'mb-3');
-                progressBarContainer.innerHTML = `
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-600">
-                        <div class="h-2.5 rounded-full ${goal.isCompleted ? 'bg-green-500' : 'bg-indigo-500'}" style="width: ${progress}%"></div>
-                    </div>
-                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1 block">${progress}% complete</span>
-                `;
-                li.appendChild(progressBarContainer);
-
-                // --- Details Section (Notes and Progress Input) ---
-                const details = document.createElement('details');
-                details.classList.add('p-4', 'bg-gray-50', 'dark:bg-gray-800', 'rounded-b-xl', 'border-t', 'border-gray-200', 'dark:border-gray-700');
-                
-                // Summary/Toggle for details
-                const summary = document.createElement('summary');
-                summary.classList.add('text-sm', 'font-semibold', 'text-indigo-600', 'dark:text-indigo-400', 'cursor-pointer', 'select-none', 'flex', 'items-center');
-                summary.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg> Goal Details';
-                details.appendChild(summary);
-
-                const detailsContent = document.createElement('div');
-                detailsContent.classList.add('pt-4', 'space-y-4');
-
-                // 1. Notes Textarea
-                const notesLabel = document.createElement('label');
-                notesLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300');
-                notesLabel.textContent = 'Notes / Milestones';
-                
-                const notesTextarea = document.createElement('textarea');
-                notesTextarea.classList.add(
-                    'mt-1', 'block', 'w-full', 'p-2', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-md', 'shadow-sm', 'focus:ring-indigo-500', 'focus:border-indigo-500', 'sm:text-sm', 'bg-white', 'dark:bg-gray-700', 'dark:text-white'
-                );
-                notesTextarea.rows = 3;
-                notesTextarea.placeholder = 'Add key metrics, reminders, or progress updates...';
-                notesTextarea.value = notes;
-
-                // Autosave notes on blur
-                notesTextarea.addEventListener('blur', (e) => {
-                    updateGoalField(goalId, 'notes', e.target.value);
-                });
-
-                detailsContent.appendChild(notesLabel);
-                detailsContent.appendChild(notesTextarea);
-
-                // 2. Progress Slider
-                const progressDiv = document.createElement('div');
-                progressDiv.classList.add('pt-2');
-                const progressLabel = document.createElement('label');
-                progressLabel.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'dark:text-gray-300', 'mb-2');
-                progressLabel.innerHTML = `Current Progress: <span id="progress-value-${goalId}" class="font-bold text-indigo-600 dark:text-indigo-400">${progress}%</span>`;
-                
-                const progressInput = document.createElement('input');
-                progressInput.type = 'range';
-                progressInput.min = '0';
-                progressInput.max = '100';
-                progressInput.step = '1';
-                progressInput.value = progress;
-                progressInput.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'range-md', 'dark:bg-gray-700');
-                
-                // Update percentage display while sliding
-                progressInput.addEventListener('input', (e) => {
-                    document.getElementById(`progress-value-${goalId}`).textContent = `${e.target.value}%`;
-                });
-
-                // Update Firestore on change (when mouse is released/focus leaves)
-                progressInput.addEventListener('change', (e) => {
-                    const newProgress = parseInt(e.target.value);
-                    updateGoalField(goalId, 'progress', newProgress);
-                    // Automatically mark complete if 100%
-                    if (newProgress === 100 && !goal.isCompleted) {
-                        toggleGoalCompletion(goalId, false);
-                    }
-                    // Automatically mark incomplete if less than 100%
-                    if (newProgress < 100 && goal.isCompleted) {
-                        toggleGoalCompletion(goalId, true);
-                    }
-                });
-
-                progressDiv.appendChild(progressLabel);
-                progressDiv.appendChild(progressInput);
-                detailsContent.appendChild(progressDiv);
-
-                // 3. Delete Button
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Delete Goal';
-                deleteBtn.classList.add(
-                    'mt-4', 'w-full', 'px-4', 'py-2', 'text-sm', 'font-medium', 'text-red-700', 'bg-red-100', 'rounded-lg', 'hover:bg-red-200', 
-                    'dark:bg-red-900/50', 'dark:text-red-300', 'dark:hover:bg-red-900', 'transition', 'duration-150', 'focus:ring-2', 'focus:ring-red-500', 'focus:ring-offset-2'
-                );
-                deleteBtn.addEventListener('click', () => {
-                    if (confirm(`Are you sure you want to delete the goal: "${goal.name}"?`)) {
-                        deleteGoal(goalId);
-                    }
-                });
-                detailsContent.appendChild(deleteBtn);
-
-                details.appendChild(detailsContent);
-                li.appendChild(details);
-                goalsList.appendChild(li);
-                
-                // If the plan modal is currently showing this goal, re-render the steps
-                if (planModal.classList.contains('hidden') === false && planGoalName.textContent === goal.name) {
-                    if (hasPlan) {
-                         displayActionPlan(goalId, goal.plan.steps);
-                    } else {
-                        // Plan was deleted/removed, show message
-                        planStepsContainer.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400 p-8">No action plan found. Click "✨ Plan" to generate one.</p>`;
-                    }
-                }
-            });
-        }
-
-
-        /**
-         * Sets up the real-time listener for the user's goals collection.
-         */
-        function listenForGoals() {
-            if (!userId) return;
-
-            // Define the path to the user's goals collection
-            const goalsCollectionRef = collection(db, `artifacts/${APP_ID}/users/${userId}/goals`);
-            
-            // Set up real-time listener
-            onSnapshot(goalsCollectionRef, (snapshot) => {
-                const goals = [];
-                snapshot.forEach((doc) => {
-                    // Include the document ID with the data
-                    goals.push({ id: doc.id, ...doc.data() });
-                });
-                renderGoals(goals);
-            }, (error) => {
-                console.error("Firestore Listener Error: ", error);
-                loadingIndicator.textContent = 'Error fetching goals. Check console for details.';
-                showMessage('Error fetching goals: ' + error.message, 'error');
-            });
-        }
-
-        // --- Application Start ---
-        initFirebase();
     </script>
 </body>
 </html>
