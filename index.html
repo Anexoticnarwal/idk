@@ -172,6 +172,10 @@
         const LOCAL_STORAGE_KEY = 'goalTrackerData';
         let goals = [];
         let stepsDraft = [];
+        
+        // Global variable to store the context of the pending deletion
+        let pendingDeletion = { type: null, goalId: null, stepId: null }; 
+
 
         /**
          * Loads goals from local storage or initializes an empty array.
@@ -388,12 +392,15 @@
             // Generate Steps List HTML
             const stepsHtml = goal.steps.length > 0
                 ? goal.steps.map(step => {
+                    const stepId = step.id;
+                    const goalId = goal.id;
+
                     // Determine checkbox state:
                     const isCompleted = step.isRecurring 
                         ? (step.completionLog && step.completionLog.includes(today)) 
                         : step.isCompleted;
 
-                    // CONDITIONAL DATES: Only show dates if the goal is expanded
+                    // CONDITIONAL DATES: Show dates only if the goal is expanded
                     const datesHtml = isExpanded && (step.startDate || step.endDate)
                         ? `<span class="text-xs text-gray-400">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
                         : '';
@@ -403,16 +410,69 @@
                         : '';
 
                     return `
-                    <li data-step-id="${step.id}" class="flex items-start p-2 bg-gray-50 rounded-lg border border-gray-200 transition duration-100 hover:bg-gray-100">
-                        <input type="checkbox" ${isCompleted ? 'checked' : ''} 
-                            onchange="handleToggleStep('${goal.id}', '${step.id}', this.checked)"
-                            class="toggle-step h-5 w-5 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer mt-1 mr-3"
-                            title="${step.isRecurring ? 'Mark complete for today' : 'Mark as permanent complete'}" />
-                        <div class="text-sm flex-grow min-w-0">
-                            <span class="block font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
-                                ${step.description} ${recurringTag}
-                            </span>
-                            ${datesHtml}
+                    <li data-step-id="${stepId}" class="p-2 bg-gray-50 rounded-lg border border-gray-200 transition duration-100 hover:bg-gray-100 space-y-2">
+                        
+                        <!-- 1. STEP DISPLAY MODE -->
+                        <div class="step-display flex items-start">
+                            <input type="checkbox" ${isCompleted ? 'checked' : ''} 
+                                onchange="handleToggleStep('${goalId}', '${stepId}', this.checked)"
+                                class="toggle-step h-5 w-5 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer mt-1 mr-3"
+                                title="${step.isRecurring ? 'Mark complete for today' : 'Mark as permanent complete'}" />
+                            <div class="text-sm flex-grow min-w-0">
+                                <span class="block font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
+                                    ${step.description} ${recurringTag}
+                                </span>
+                                ${datesHtml}
+                            </div>
+                            <!-- Actions (Visible when goal is expanded) -->
+                            <div class="flex-shrink-0 flex space-x-2 ml-4">
+                                ${isExpanded ? `
+                                    <button onclick="handleToggleStepEdit('${goalId}', '${stepId}')" class="text-gray-500 hover:text-blue-600 transition" title="Edit Task">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                    </button>
+                                    <button onclick="showDeleteModal('${goalId}', '${stepId}', 'step', '${step.description}')" class="text-gray-500 hover:text-red-600 transition" title="Delete Task">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- 2. STEP EDIT MODE (Hidden by default) -->
+                        <div class="step-edit hidden p-3 bg-white rounded-lg border border-blue-200 space-y-2">
+                            <h5 class="font-bold text-sm text-blue-600">Editing Task</h5>
+                            
+                            <!-- Description -->
+                            <div>
+                                <label for="edit-desc-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                                <input id="edit-desc-${stepId}" type="text" value="${step.description}" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+
+                            <!-- Dates -->
+                            <div class="flex space-x-2">
+                                <div class="w-1/2">
+                                    <label for="edit-start-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                                    <input id="edit-start-${stepId}" type="date" value="${step.startDate}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+                                </div>
+                                <div class="w-1/2">
+                                    <label for="edit-end-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Target Date</label>
+                                    <input id="edit-end-${stepId}" type="date" value="${step.endDate}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+                                </div>
+                            </div>
+                            
+                            <!-- Recurring Checkbox -->
+                            <div class="flex items-center">
+                                <input id="edit-recurring-${stepId}" type="checkbox" ${step.isRecurring ? 'checked' : ''} class="h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300 toggle-step" />
+                                <label for="edit-recurring-${stepId}" class="ml-2 block text-sm font-medium text-gray-700">Daily Recurring</label>
+                            </div>
+
+                            <div class="flex justify-end space-x-2 pt-2 border-t">
+                                <button onclick="handleToggleStepEdit('${goalId}', '${stepId}')" class="px-3 py-1 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-100 transition border border-gray-300">
+                                    Cancel
+                                </button>
+                                <button onclick="handleSaveStep('${goalId}', '${stepId}')" class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-md">
+                                    Save Task
+                                </button>
+                            </div>
                         </div>
                     </li>
                 `}).join('')
@@ -527,8 +587,6 @@
                     ></div>
                 </div>
                 
-                <!-- Dates Summary (REMOVED) -->
-                
                 <!-- Tasks Header (ONLY VISIBLE WHEN EXPANDED) -->
                 ${taskHeaderHtml}
                 
@@ -549,7 +607,7 @@
 
                     <!-- 3. Delete Button -->
                     <button
-                        onclick="showDeleteModal('${goal.id}', '${goal.name}')"
+                        onclick="showDeleteModal('${goal.id}', '${goal.id}', 'goal', '${goal.name}')"
                         class="mt-4 w-full text-red-600 hover:bg-red-50 text-sm font-semibold py-2 rounded-xl transition duration-150 border border-red-300 shadow-sm"
                     >
                         Delete Goal
@@ -605,6 +663,77 @@
                 }
                 saveGoals();
             }
+        };
+        
+        /**
+         * Toggles a step between display and edit mode.
+         * @param {string} goalId 
+         * @param {string} stepId 
+         */
+        const handleToggleStepEdit = (goalId, stepId) => {
+            const li = document.querySelector(`[data-goal-id="${goalId}"] [data-step-id="${stepId}"]`);
+            if (!li) return;
+            
+            const displayDiv = li.querySelector('.step-display');
+            const editDiv = li.querySelector('.step-edit');
+            
+            // Toggle visibility
+            displayDiv.classList.toggle('hidden');
+            editDiv.classList.toggle('hidden');
+        };
+
+        /**
+         * Saves the changes made to an existing step.
+         * @param {string} goalId 
+         * @param {string} stepId 
+         */
+        const handleSaveStep = (goalId, stepId) => {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            const step = goal.steps.find(s => s.id === stepId);
+            if (!step) return;
+
+            const li = document.querySelector(`[data-goal-id="${goalId}"] [data-step-id="${stepId}"]`);
+            if (!li) return;
+
+            // Get values from the edit inputs
+            const descInput = li.querySelector(`#edit-desc-${stepId}`);
+            const startInput = li.querySelector(`#edit-start-${stepId}`);
+            const endInput = li.querySelector(`#edit-end-${stepId}`);
+            const recurringCheckbox = li.querySelector(`#edit-recurring-${stepId}`);
+
+            const newDescription = descInput.value.trim();
+            if (!newDescription) {
+                showStatusMessage('Task description cannot be empty!');
+                return;
+            }
+            
+            const newIsRecurring = recurringCheckbox.checked;
+
+            // Update the step object
+            step.description = newDescription;
+            step.startDate = startInput.value;
+            step.endDate = endInput.value;
+            
+            // Handle change in recurring status
+            if (step.isRecurring !== newIsRecurring) {
+                step.isRecurring = newIsRecurring;
+                // Reset completion log/status if type changes
+                if (newIsRecurring) {
+                    step.isCompleted = false;
+                    step.completionLog = [];
+                } else {
+                    step.completionLog = null;
+                }
+            }
+
+            saveGoals();
+            
+            // Toggle back to display mode (renderGoals will implicitly do this, but for better UX, toggle the UI before a full re-render)
+            handleToggleStepEdit(goalId, stepId); 
+            // Re-render the entire list to update progress and step display
+            renderGoals(); 
         };
 
         /**
@@ -723,6 +852,21 @@
             saveGoals();
             hideModal();
         };
+        
+        /**
+         * Deletes a step after confirmation.
+         * @param {string} goalId 
+         * @param {string} stepId 
+         */
+        const handleDeleteStep = (goalId, stepId) => {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            goal.steps = goal.steps.filter(step => step.id !== stepId);
+            saveGoals();
+            hideModal();
+        };
+
 
         // --- CONFIRMATION MODAL LOGIC ---
         const modal = document.getElementById('confirmation-modal');
@@ -731,34 +875,47 @@
         const modalConfirmBtn = document.getElementById('modal-confirm-btn');
         const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
-        let pendingDeleteId = null;
-
         /**
-         * Shows the custom delete confirmation modal.
+         * Shows the custom delete confirmation modal, handling both goals and steps.
          * @param {string} goalId 
-         * @param {string} goalName 
+         * @param {string} entityId - Either goalId or stepId
+         * @param {'goal'|'step'} type - The type of entity being deleted.
+         * @param {string} name - The name of the goal or step.
          */
-        const showDeleteModal = (goalId, goalName) => {
-            pendingDeleteId = goalId;
-            modalTitle.textContent = 'Delete Goal';
-            modalMessage.textContent = `Are you sure you want to delete "${goalName}"? This action cannot be undone and will permanently delete the data from your browser.`;
-            modalConfirmBtn.textContent = 'Confirm Delete';
+        const showDeleteModal = (goalId, entityId, type, name) => {
+            pendingDeletion = { type, goalId, stepId: type === 'step' ? entityId : null };
+
+            if (type === 'goal') {
+                modalTitle.textContent = 'Delete Goal';
+                modalMessage.textContent = `Are you sure you want to delete the goal "${name}"? This action cannot be undone.`;
+                modalConfirmBtn.textContent = 'Confirm Delete Goal';
+                modalConfirmBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md';
+            } else if (type === 'step') {
+                modalTitle.textContent = 'Delete Task';
+                modalMessage.textContent = `Are you sure you want to delete the task "${name}"? This action cannot be undone.`;
+                modalConfirmBtn.textContent = 'Confirm Delete Task';
+                modalConfirmBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md';
+            }
+            
             modal.classList.remove('hidden');
-            modal.onclick = hideModal; // Close if clicked outside
+            modal.onclick = hideModal;
         };
+
 
         /**
          * Hides the custom modal.
          */
         const hideModal = () => {
             modal.classList.add('hidden');
-            pendingDeleteId = null;
+            pendingDeletion = { type: null, goalId: null, stepId: null };
         };
         
         // Attach modal event listeners
         modalConfirmBtn.onclick = () => {
-            if (pendingDeleteId) {
-                deleteGoal(pendingDeleteId);
+            if (pendingDeletion.type === 'goal' && pendingDeletion.goalId) {
+                deleteGoal(pendingDeletion.goalId);
+            } else if (pendingDeletion.type === 'step' && pendingDeletion.goalId && pendingDeletion.stepId) {
+                handleDeleteStep(pendingDeletion.goalId, pendingDeletion.stepId);
             }
         };
         modalCancelBtn.onclick = hideModal;
