@@ -22,24 +22,59 @@
             overflow: hidden; 
         }
         .details-container.expanded {
-            max-height: 1500px; /* Large enough value to cover content */
+            max-height: 2500px; /* Increased max-height to handle forms and steps */
             opacity: 1;
-            padding-top: 0.5rem; /* Reduced top padding */
+            padding-top: 0.5rem; 
         }
         /* Custom focus ring for form elements */
         .form-input:focus {
-            ring: 3px solid #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* blue-500 equivalent ring */
             border-color: #3b82f6;
         }
         /* Style for the step completion checkbox (making it look good) */
         .toggle-step {
             accent-color: #059669; /* emerald-600 */
         }
+        /* Keyframe for a satisfying completion animation */
+        @keyframes highlight-complete {
+            0% { background-color: rgba(5, 150, 105, 0.1); } /* emerald-100 */
+            100% { background-color: transparent; }
+        }
+        .animate-complete {
+            animation: highlight-complete 0.6s ease-out;
+        }
     </style>
 </head>
 <body class="min-h-screen">
 
     <main class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Minimal Header -->
+        <h1 class="text-xl font-semibold text-gray-800 mb-4">Goal Tracker</h1>
+
+        <!-- FILTER AND SORT CONTROLS (Compact) -->
+        <div class="bg-white p-3 rounded-xl shadow-md mb-6 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 items-end border border-gray-100 text-sm">
+            <!-- Filter Column -->
+            <div class="w-full sm:w-1/2">
+                <label for="status-filter" class="block text-xs font-medium text-gray-500 mb-0.5">Filter by Status</label>
+                <select id="status-filter" class="form-input w-full p-1.5 border border-gray-300 rounded-lg text-sm transition duration-150" onchange="applyFilters()">
+                    <option value="all">All Goals</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed (100%)</option>
+                </select>
+            </div>
+            
+            <!-- Sort Column -->
+            <div class="w-full sm:w-1/2">
+                <label for="sort-by" class="block text-xs font-medium text-gray-500 mb-0.5">Sort By</label>
+                <select id="sort-by" class="form-input w-full p-1.5 border border-gray-300 rounded-lg text-sm transition duration-150" onchange="applyFilters()">
+                    <option value="progress-desc">Progress (Highest First)</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="start-date-asc">Start Date (Earliest First)</option>
+                    <option value="target-date-asc">Target Date (Earliest First)</option>
+                </select>
+            </div>
+        </div>
 
         <!-- GOALS LIST CONTAINER -->
         <div id="goals-list" class="space-y-6 mb-10">
@@ -48,7 +83,6 @@
         
         <!-- GOAL CREATION FORM -->
         <div id="add-goal-container" class="bg-white p-4 rounded-2xl shadow-xl border border-gray-100">
-            <!-- Reduced spacing between header and content -->
             <div class="flex justify-between items-center mb-1 pb-1 border-b">
                 <h2 class="text-xl font-bold text-gray-800">New Goal</h2>
                 <button
@@ -62,36 +96,36 @@
             </div>
             
             <div id="add-goal-form-content" class="details-container expanded">
-                <!-- Removed space-y-2. Spacing is now handled by mb-3/mt-3 on direct children -->
                 <form id="add-goal-form">
                     
-                    <!-- Goal Name Input (Added mb-3) -->
+                    <!-- Goal Name Input -->
                     <div class="mb-3">
                         <label for="goal-name" class="block text-sm font-medium text-gray-700 mb-1">Goal Name</label>
                         <input id="goal-name" type="text" placeholder="e.g., Launch New Project" class="form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150" required />
                     </div>
                     
-                    <!-- Goal Dates Input (Added mb-3) -->
+                    <!-- Goal Dates Input -->
                     <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mb-3">
                         <div class="w-full sm:w-1/2">
                             <label for="goal-start" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input id="goal-start" type="date" class="form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
+                            <input id="goal-start" type="date" class="goal-date form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
                         </div>
                         <div class="w-full sm:w-1/2">
                             <label for="goal-end" class="block text-sm font-medium text-gray-700 mb-1">Target Date</label>
-                            <input id="goal-end" type="date" class="form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
+                            <input id="goal-end" type="date" class="goal-date form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
                         </div>
                     </div>
 
-                    <!-- Tasks Drafting Section - NO margin needed at the top here -->
+                    <!-- Tasks Drafting Section -->
                     <div class="p-3 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
                         <div id="tasks-draft-container" class="details-container expanded"> 
-                            <!-- Drafted Steps List: Note: mb-2 was removed in the previous revision -->
-                            <ul id="steps-draft-list" class="space-y-1 max-h-40 overflow-y-auto pr-2">
+                            <p class="text-xs font-semibold text-gray-600 mb-2">Tasks to include in the new goal:</p>
+                            <!-- Drafted Steps List -->
+                            <ul id="steps-draft-list" class="space-y-1 max-h-40 overflow-y-auto pr-2 mb-2">
                                 <!-- Steps will be dynamically inserted here -->
                             </ul>
 
-                            <!-- New Step Input Group (Removed mt-2 for reduced top gap) -->
+                            <!-- New Step Input Group -->
                             <div class="space-y-2 pt-1 border-t border-gray-200">
                                 <!-- Task Description Input -->
                                 <div>
@@ -103,11 +137,11 @@
                                 <div class="flex space-x-3">
                                     <div class="w-1/2">
                                         <label for="new-step-start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                        <input id="new-step-start-date" type="date" class="form-input w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150" />
+                                        <input id="new-step-start-date" type="date" class="step-date form-input w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150" />
                                     </div>
                                     <div class="w-1/2">
                                         <label for="new-step-end-date" class="block text-sm font-medium text-gray-700 mb-1">Target Date</label>
-                                        <input id="new-step-end-date" type="date" class="form-input w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150" />
+                                        <input id="new-step-end-date" type="date" class="step-date form-input w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150" />
                                     </div>
                                 </div>
 
@@ -126,14 +160,12 @@
                         </div>
                     </div>
                     
-                    <!-- Notes Section (Added mt-3 for spacing) -->
+                    <!-- Notes Section -->
                     <div class="p-3 bg-gray-50 rounded-xl shadow-inner border border-gray-200 mt-3">
-                        <!-- Changed text-lg to text-sm and removed mb-2 for consistency -->
                         <button type="button" id="toggle-notes" class="w-full text-left flex justify-between items-center text-sm font-bold text-gray-700 hover:text-blue-600 transition duration-150" aria-expanded="false">
                             <span>Notes</span>
                             <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
-                        <!-- details-container makes this section collapsed initially -->
                         <div id="notes-container" class="details-container">
                             <textarea id="goal-notes" rows="3" placeholder="Context or key resources..." class="form-input w-full p-2 border border-gray-300 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"></textarea>
                         </div>
@@ -145,6 +177,11 @@
                     </button>
                 </form>
             </div>
+        </div>
+        
+        <!-- MESSAGE BOX (Replaces showStatusMessage for better UX) -->
+        <div id="message-box" class="fixed bottom-4 right-4 bg-emerald-500 text-white p-3 rounded-lg shadow-xl transition-all duration-300 opacity-0 transform translate-y-4 pointer-events-none" role="status">
+            Success!
         </div>
 
         <!-- CONFIRMATION MODAL -->
@@ -162,20 +199,62 @@
                 </div>
             </div>
         </div>
+
+        <!-- EDIT GOAL MODAL (New Modal for editing Goal Name/Dates) -->
+        <div id="edit-goal-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4" aria-modal="true" role="dialog">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" role="document">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Edit Goal Details</h3>
+                <form id="edit-goal-form">
+                    <input type="hidden" id="edit-goal-id">
+
+                    <div class="mb-4">
+                        <label for="edit-goal-name" class="block text-sm font-medium text-gray-700 mb-1">Goal Name</label>
+                        <input id="edit-goal-name" type="text" class="form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150" required />
+                        <p id="edit-name-error" class="text-red-500 text-xs mt-1 hidden">Goal name cannot be empty.</p>
+                    </div>
+
+                    <div class="flex space-x-3 mb-6">
+                        <div class="w-1/2">
+                            <label for="edit-goal-start" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input id="edit-goal-start" type="date" class="edit-goal-date form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
+                        </div>
+                        <div class="w-1/2">
+                            <label for="edit-goal-end" class="block text-sm font-medium text-gray-700 mb-1">Target Date</label>
+                            <input id="edit-goal-end" type="date" class="edit-goal-date form-input w-full p-2 border border-gray-300 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
+                        </div>
+                    </div>
+                    <p id="edit-date-error" class="text-red-500 text-sm mb-4 hidden -mt-4">Target Date must be after the Start Date.</p>
+
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="hideEditModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-150 shadow-md">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </main>
 
     <footer class="max-w-4xl mx-auto px-4 py-4 text-center text-xs text-gray-400 border-t mt-8">
+        Goal Tracker Enhanced - No APIs Used
     </footer>
 
     <script>
         // --- DATA MANAGEMENT (LOCAL STORAGE) ---
-        const LOCAL_STORAGE_KEY = 'goalTrackerData';
+        const LOCAL_STORAGE_KEY = 'goalTrackerDataV2'; // Updated key for potential data model changes
         let goals = [];
         let stepsDraft = [];
-        
-        // Global variable to store the context of the pending deletion
-        let pendingDeletion = { type: null, goalId: null, stepId: null }; 
+        let currentFilter = 'all';
+        let currentSort = 'progress-desc';
 
+        // Custom validation function to check if date1 is before date2
+        const isDateBefore = (date1, date2) => {
+            if (!date1 || !date2) return true; // Allow empty dates
+            return new Date(date1) <= new Date(date2);
+        };
 
         /**
          * Loads goals from local storage or initializes an empty array.
@@ -183,15 +262,23 @@
         const loadGoals = () => {
             const data = localStorage.getItem(LOCAL_STORAGE_KEY);
             goals = data ? JSON.parse(data) : [];
+            // Calculate and store initial progress for each goal (needed for filtering/sorting)
+            goals.forEach(goal => {
+                goal.progress = calculateProgress(goal).progressPercent;
+            });
         };
 
         /**
          * Saves the current goals array to local storage.
          */
-        const saveGoals = () => {
+        const saveGoals = (message = 'Goal updated successfully!') => {
+            // Re-calculate progress before saving/rendering
+            goals.forEach(goal => {
+                goal.progress = calculateProgress(goal).progressPercent;
+            });
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(goals));
-            console.log('STATUS: Data saved successfully!'); 
-            renderGoals();
+            showStatusMessage(message); 
+            applyFilters(); // Re-render with current filters/sort
         };
 
         /**
@@ -231,25 +318,69 @@
         };
 
         /**
-         * Shows a temporary status message (now just logging to console).
+         * Shows a temporary status message in a fixed notification box.
          * @param {string} message 
+         * @param {string} colorClass - Tailwind color class (e.g., 'bg-emerald-500')
          */
-        const showStatusMessage = (message) => {
-            console.warn(`ALERT: ${message}`);
+        const showStatusMessage = (message, colorClass = 'bg-emerald-500') => {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.className = `fixed bottom-4 right-4 text-white p-3 rounded-lg shadow-xl transition-all duration-300 opacity-100 transform translate-y-0 pointer-events-auto ${colorClass}`;
+
+            setTimeout(() => {
+                msgBox.className = `fixed bottom-4 right-4 text-white p-3 rounded-lg shadow-xl transition-all duration-300 opacity-0 transform translate-y-4 pointer-events-none ${colorClass}`;
+            }, 3000);
         };
+
+        // --- FILTERING AND SORTING ---
+
+        /**
+         * Applies the selected filter and sort criteria to the goals list and renders.
+         */
+        const applyFilters = () => {
+            currentFilter = document.getElementById('status-filter').value;
+            currentSort = document.getElementById('sort-by').value;
+
+            let filteredGoals = goals;
+
+            // 1. Filtering
+            if (currentFilter === 'active') {
+                filteredGoals = goals.filter(g => g.progress < 100);
+            } else if (currentFilter === 'completed') {
+                filteredGoals = goals.filter(g => g.progress === 100);
+            }
+
+            // 2. Sorting
+            filteredGoals.sort((a, b) => {
+                switch (currentSort) {
+                    case 'name-asc':
+                        return a.name.localeCompare(b.name);
+                    case 'start-date-asc':
+                        return (a.startDate || '9999-12-31').localeCompare(b.startDate || '9999-12-31');
+                    case 'target-date-asc':
+                        return (a.endDate || '9999-12-31').localeCompare(b.endDate || '9999-12-31');
+                    case 'progress-desc':
+                    default:
+                        return b.progress - a.progress;
+                }
+            });
+
+            renderGoals(filteredGoals);
+        };
+
 
         // --- GOAL RENDERING ---
 
         /**
          * Calculates the progress percentage for a goal and the daily completion count.
          * @param {object} goal - The goal object.
-         * @returns {{progressPercent: number, completedToday: number, totalSteps: number}} The progress metrics.
+         * @returns {{progressPercent: number, completedToday: number, totalSteps: number, isCompleted: boolean}} The progress metrics.
          */
         const calculateProgress = (goal) => {
             const totalSteps = goal.steps.length;
             const today = getTodayDateString();
             
-            if (totalSteps === 0) return { progressPercent: 0, completedToday: 0, totalSteps: 0 };
+            if (totalSteps === 0) return { progressPercent: 0, completedToday: 0, totalSteps: 0, isCompleted: false };
 
             const completedToday = goal.steps.reduce((count, step) => {
                 const isStepCompleted = step.isRecurring
@@ -261,35 +392,38 @@
 
             // Progress is calculated based on completed steps today / total steps
             const progressPercent = Math.round((completedToday / totalSteps) * 100);
+            const isCompleted = progressPercent === 100;
 
-            return { progressPercent, completedToday, totalSteps };
+            return { progressPercent, completedToday, totalSteps, isCompleted };
         };
 
         /**
-         * Renders the entire list of goals.
+         * Renders the entire list of goals based on the filtered list.
+         * @param {Array<object>} displayGoals - The list of goals to display.
          */
-        const renderGoals = () => {
+        const renderGoals = (displayGoals) => {
             const goalsListContainer = document.getElementById('goals-list');
             goalsListContainer.innerHTML = ''; // Clear existing content
 
-            if (goals.length === 0) {
+            if (displayGoals.length === 0) {
+                const filterText = currentFilter === 'all' ? 'found in your tracker.' : `matching the status "${currentFilter}".`;
                 goalsListContainer.innerHTML = `
                     <div class="text-center p-12 bg-white rounded-xl shadow-lg border-4 border-dashed border-gray-300">
-                        <p class="text-xl font-semibold text-gray-600">No Goals Found</p>
-                        <p class="mt-2 text-gray-500">Start by creating a new goal below!</p>
+                        <p class="text-xl font-semibold text-gray-600">No Goals ${filterText}</p>
+                        <p class="mt-2 text-gray-500">Try creating a new goal or adjusting your filter/sort settings.</p>
                     </div>
                 `;
                 return;
             }
 
-            goals.forEach(goal => {
+            displayGoals.forEach(goal => {
                 const goalElement = createGoalElement(goal);
                 goalsListContainer.appendChild(goalElement);
             });
         };
 
         /**
-         * Toggles a nested details container (used for Add Task form and Notes).
+         * Toggles a nested details container.
          * @param {HTMLElement} button - The button element that was clicked.
          * @param {string} contentId - The ID of the details-container to toggle.
          */
@@ -299,9 +433,9 @@
             
             if (!content || !svg) return;
 
-            content.classList.toggle('expanded');
-            svg.classList.toggle('rotate-180');
-            button.setAttribute('aria-expanded', content.classList.contains('expanded'));
+            const isExpanded = content.classList.toggle('expanded');
+            svg.classList.toggle('rotate-180', isExpanded);
+            button.setAttribute('aria-expanded', isExpanded);
         };
 
 
@@ -311,27 +445,23 @@
          * @returns {HTMLElement} The goal element.
          */
         const createGoalElement = (goal) => {
-            const { progressPercent, completedToday, totalSteps } = calculateProgress(goal);
-            const isGoalCompleted = totalSteps > 0 && progressPercent === 100;
-            const isExpanded = goal.isExpanded || false; // Check expansion state
+            const { progressPercent, completedToday, totalSteps, isCompleted } = calculateProgress(goal);
+            const isExpanded = goal.isExpanded || false;
             const today = getTodayDateString();
 
             // Use Emerald for success (complete) and Blue for in-progress
-            const baseColor = isGoalCompleted ? 'emerald' : 'blue';
+            const baseColor = isCompleted ? 'emerald' : 'blue';
 
             const goalDiv = document.createElement('div');
             goalDiv.className = `bg-white shadow-xl rounded-2xl p-4 border-t-4 border-${baseColor}-500 transition-shadow hover:shadow-2xl`;
             goalDiv.setAttribute('data-goal-id', goal.id);
 
-            // --- NOTES/EDITING SECTION (Styled to match the Add Goal form) ---
+            // --- NOTES/EDITING SECTION ---
             const hasNotes = !!goal.notes;
+            const notesContent = hasNotes ? goal.notes : 'No context or key resources added.';
+            const notesTextClass = hasNotes ? 'text-gray-700' : 'text-gray-500 italic';
             
-            // If no notes, content is an empty string.
-            const notesContent = hasNotes ? goal.notes : ''; 
-            const notesTextClass = 'text-gray-700'; 
-
             const notesSectionHtml = `
-                <!-- Wrapper matching the Add Goal Notes section -->
                 <div class="p-3 bg-gray-50 rounded-xl shadow-inner border border-gray-200 mt-3">
                     <button
                         type="button" 
@@ -392,15 +522,10 @@
             // Generate Steps List HTML
             const stepsHtml = goal.steps.length > 0
                 ? goal.steps.map(step => {
-                    const stepId = step.id;
-                    const goalId = goal.id;
-
-                    // Determine checkbox state:
                     const isCompleted = step.isRecurring 
                         ? (step.completionLog && step.completionLog.includes(today)) 
                         : step.isCompleted;
 
-                    // CONDITIONAL DATES: Show dates only if the goal is expanded
                     const datesHtml = isExpanded && (step.startDate || step.endDate)
                         ? `<span class="text-xs text-gray-400">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
                         : '';
@@ -410,69 +535,16 @@
                         : '';
 
                     return `
-                    <li data-step-id="${stepId}" class="p-2 bg-gray-50 rounded-lg border border-gray-200 transition duration-100 hover:bg-gray-100 space-y-2">
-                        
-                        <!-- 1. STEP DISPLAY MODE -->
-                        <div class="step-display flex items-start">
-                            <input type="checkbox" ${isCompleted ? 'checked' : ''} 
-                                onchange="handleToggleStep('${goalId}', '${stepId}', this.checked)"
-                                class="toggle-step h-5 w-5 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer mt-1 mr-3"
-                                title="${step.isRecurring ? 'Mark complete for today' : 'Mark as permanent complete'}" />
-                            <div class="text-sm flex-grow min-w-0">
-                                <span class="block font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
-                                    ${step.description} ${recurringTag}
-                                </span>
-                                ${datesHtml}
-                            </div>
-                            <!-- Actions (Visible when goal is expanded) -->
-                            <div class="flex-shrink-0 flex space-x-2 ml-4">
-                                ${isExpanded ? `
-                                    <button onclick="handleToggleStepEdit('${goalId}', '${stepId}')" class="text-gray-500 hover:text-blue-600 transition" title="Edit Task">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                    </button>
-                                    <button onclick="showDeleteModal('${goalId}', '${stepId}', 'step', '${step.description}')" class="text-gray-500 hover:text-red-600 transition" title="Delete Task">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
-
-                        <!-- 2. STEP EDIT MODE (Hidden by default) -->
-                        <div class="step-edit hidden p-3 bg-white rounded-lg border border-blue-200 space-y-2">
-                            <h5 class="font-bold text-sm text-blue-600">Editing Task</h5>
-                            
-                            <!-- Description -->
-                            <div>
-                                <label for="edit-desc-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                                <input id="edit-desc-${stepId}" type="text" value="${step.description}" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" />
-                            </div>
-
-                            <!-- Dates -->
-                            <div class="flex space-x-2">
-                                <div class="w-1/2">
-                                    <label for="edit-start-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
-                                    <input id="edit-start-${stepId}" type="date" value="${step.startDate}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-                                </div>
-                                <div class="w-1/2">
-                                    <label for="edit-end-${stepId}" class="block text-xs font-medium text-gray-600 mb-1">Target Date</label>
-                                    <input id="edit-end-${stepId}" type="date" value="${step.endDate}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-                                </div>
-                            </div>
-                            
-                            <!-- Recurring Checkbox -->
-                            <div class="flex items-center">
-                                <input id="edit-recurring-${stepId}" type="checkbox" ${step.isRecurring ? 'checked' : ''} class="h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300 toggle-step" />
-                                <label for="edit-recurring-${stepId}" class="ml-2 block text-sm font-medium text-gray-700">Daily Recurring</label>
-                            </div>
-
-                            <div class="flex justify-end space-x-2 pt-2 border-t">
-                                <button onclick="handleToggleStepEdit('${goalId}', '${stepId}')" class="px-3 py-1 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-100 transition border border-gray-300">
-                                    Cancel
-                                </button>
-                                <button onclick="handleSaveStep('${goalId}', '${stepId}')" class="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-md">
-                                    Save Task
-                                </button>
-                            </div>
+                    <li data-step-id="${step.id}" class="step-item flex items-start p-2 bg-gray-50 rounded-lg border border-gray-200 transition duration-100 hover:bg-gray-100 ${isCompleted ? 'animate-complete' : ''}">
+                        <input type="checkbox" ${isCompleted ? 'checked' : ''} 
+                            onchange="handleToggleStep('${goal.id}', '${step.id}', this.checked)"
+                            class="toggle-step h-5 w-5 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer mt-1 mr-3"
+                            title="${step.isRecurring ? 'Mark complete for today' : 'Mark as permanent complete'}" />
+                        <div class="text-sm flex-grow min-w-0">
+                            <span class="block font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
+                                ${step.description} ${recurringTag}
+                            </span>
+                            ${datesHtml}
                         </div>
                     </li>
                 `}).join('')
@@ -513,7 +585,7 @@
                                     <input
                                         type="date"
                                         id="new-task-start-date-${goal.id}"
-                                        class="form-input w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                        class="step-date form-input w-full p-2 border border-gray-300 rounded-lg text-sm"
                                         title="Task Start Date"
                                     />
                                 </div>
@@ -522,7 +594,7 @@
                                     <input
                                         type="date"
                                         id="new-task-end-date-${goal.id}"
-                                        class="form-input w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                        class="step-date form-input w-full p-2 border border-gray-300 rounded-lg text-sm"
                                         title="Task Due Date"
                                     />
                                 </div>
@@ -553,20 +625,30 @@
                 ? `<h4 class="text-lg font-bold text-gray-700 mb-2">Tasks</h4>`
                 : '';
 
-
+            // Render goal name and dates with Edit Button
             goalDiv.innerHTML = `
-                <div class="flex items-center justify-between mb-2 cursor-pointer" onclick="handleToggleDetails('${goal.id}')">
-                    <!-- Goal Name (Clickable) -->
-                    <h3 class="text-xl font-bold text-gray-800 flex-grow truncate mr-4 ${isGoalCompleted ? 'line-through text-gray-500' : ''}">
-                        ${goal.name}
-                    </h3>
+                <div class="flex items-start justify-between mb-2">
+                    <!-- Goal Name & CONDENSED Edit Icon -->
+                    <div class="flex-grow truncate mr-4 flex items-center space-x-2">
+                        <h3 class="text-xl font-bold text-gray-800 ${isCompleted ? 'line-through text-gray-500' : ''}">
+                            ${goal.name}
+                        </h3>
+                        <!-- Condensed Edit Button (Pencil Icon) -->
+                        <button 
+                            onclick="showEditModal('${goal.id}')"
+                            class="text-gray-400 hover:text-blue-600 rounded-full transition duration-150 p-1 -mt-1"
+                            title="Edit Goal Name and Dates"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                    </div>
                     
                     <!-- Progress Percentage & Completion Status -->
-                    <div class="flex items-center space-x-2 flex-shrink-0">
+                    <div class="flex items-center space-x-3 flex-shrink-0">
                         <!-- Task Summary added here -->
                         <span class="text-sm font-medium text-gray-500 hidden sm:inline">${completedToday}/${totalSteps} tasks</span>
                         
-                        ${isGoalCompleted ? `
+                        ${isCompleted ? `
                             <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Completed"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             <span class="text-lg font-extrabold text-emerald-600">100%</span>
                         ` : `
@@ -574,12 +656,12 @@
                         `}
                         
                         <!-- Expansion Toggle Icon -->
-                        <svg class="w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <svg class="w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'} cursor-pointer" onclick="handleToggleDetails('${goal.id}')" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                 </div>
 
                 <!-- Thin Progress Bar beneath the header -->
-                <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
                     <div
                         class="h-1.5 rounded-full transition-all duration-500 bg-${baseColor}-500"
                         style="width: ${progressPercent}%"
@@ -587,6 +669,11 @@
                     ></div>
                 </div>
                 
+                <!-- Dates Summary (ALWAYS VISIBLE) -->
+                <p class="text-xs text-gray-600 mb-3 font-medium p-2 bg-gray-50 rounded-lg border border-gray-200 mt-3">
+                    <span class="font-semibold text-gray-700">Start:</span> ${formatDate(goal.startDate)} | <span class="font-semibold text-gray-700">Target:</span> ${formatDate(goal.endDate)}
+                </p>
+
                 <!-- Tasks Header (ONLY VISIBLE WHEN EXPANDED) -->
                 ${taskHeaderHtml}
                 
@@ -607,7 +694,7 @@
 
                     <!-- 3. Delete Button -->
                     <button
-                        onclick="showDeleteModal('${goal.id}', '${goal.id}', 'goal', '${goal.name}')"
+                        onclick="showDeleteModal('${goal.id}', '${goal.name}')"
                         class="mt-4 w-full text-red-600 hover:bg-red-50 text-sm font-semibold py-2 rounded-xl transition duration-150 border border-red-300 shadow-sm"
                     >
                         Delete Goal
@@ -628,114 +715,47 @@
             if (!goal) return;
 
             goal.isExpanded = !goal.isExpanded;
-            // No need to save to localStorage as expansion state is temporary
-            renderGoals(); 
+            // Re-render only the affected goal (or the whole list for simplicity and consistency with filtering)
+            applyFilters();
         };
 
         /**
          * Toggles the completion status of a step.
          * @param {string} goalId 
          * @param {string} stepId 
-         * @param {boolean} isCompleted - The new checked state of the input.
+         * @param {boolean} isChecked 
          */
-        const handleToggleStep = (goalId, stepId, isCompleted) => {
+        const handleToggleStep = (goalId, stepId, isChecked) => {
             const goal = goals.find(g => g.id === goalId);
-            if (!goal) return;
+            const step = goal?.steps.find(s => s.id === stepId);
+            if (!goal || !step) return;
 
-            const step = goal.steps.find(s => s.id === stepId);
-            if (step) {
-                const today = getTodayDateString();
+            const today = getTodayDateString();
 
-                if (step.isRecurring) {
-                    step.completionLog = step.completionLog || []; // Ensure log exists
-                    if (isCompleted) {
-                        // Mark as complete for today
-                        if (!step.completionLog.includes(today)) {
-                            step.completionLog.push(today);
-                        }
-                    } else {
-                        // Unmark for today
-                        step.completionLog = step.completionLog.filter(date => date !== today);
+            if (step.isRecurring) {
+                if (!step.completionLog) step.completionLog = [];
+
+                if (isChecked) {
+                    if (!step.completionLog.includes(today)) {
+                        step.completionLog.push(today);
                     }
                 } else {
-                    // Non-recurring logic
-                    step.isCompleted = isCompleted;
+                    step.completionLog = step.completionLog.filter(d => d !== today);
                 }
-                saveGoals();
+            } else {
+                step.isCompleted = isChecked;
             }
+
+            // Add animation class briefly to the DOM element
+            const stepElement = document.querySelector(`.step-item[data-step-id="${stepId}"]`);
+            if (stepElement && isChecked) {
+                 stepElement.classList.add('animate-complete');
+                 setTimeout(() => stepElement.classList.remove('animate-complete'), 700);
+            }
+
+            saveGoals('Task status updated!');
         };
         
-        /**
-         * Toggles a step between display and edit mode.
-         * @param {string} goalId 
-         * @param {string} stepId 
-         */
-        const handleToggleStepEdit = (goalId, stepId) => {
-            const li = document.querySelector(`[data-goal-id="${goalId}"] [data-step-id="${stepId}"]`);
-            if (!li) return;
-            
-            const displayDiv = li.querySelector('.step-display');
-            const editDiv = li.querySelector('.step-edit');
-            
-            // Toggle visibility
-            displayDiv.classList.toggle('hidden');
-            editDiv.classList.toggle('hidden');
-        };
-
-        /**
-         * Saves the changes made to an existing step.
-         * @param {string} goalId 
-         * @param {string} stepId 
-         */
-        const handleSaveStep = (goalId, stepId) => {
-            const goal = goals.find(g => g.id === goalId);
-            if (!goal) return;
-
-            const step = goal.steps.find(s => s.id === stepId);
-            if (!step) return;
-
-            const li = document.querySelector(`[data-goal-id="${goalId}"] [data-step-id="${stepId}"]`);
-            if (!li) return;
-
-            // Get values from the edit inputs
-            const descInput = li.querySelector(`#edit-desc-${stepId}`);
-            const startInput = li.querySelector(`#edit-start-${stepId}`);
-            const endInput = li.querySelector(`#edit-end-${stepId}`);
-            const recurringCheckbox = li.querySelector(`#edit-recurring-${stepId}`);
-
-            const newDescription = descInput.value.trim();
-            if (!newDescription) {
-                showStatusMessage('Task description cannot be empty!');
-                return;
-            }
-            
-            const newIsRecurring = recurringCheckbox.checked;
-
-            // Update the step object
-            step.description = newDescription;
-            step.startDate = startInput.value;
-            step.endDate = endInput.value;
-            
-            // Handle change in recurring status
-            if (step.isRecurring !== newIsRecurring) {
-                step.isRecurring = newIsRecurring;
-                // Reset completion log/status if type changes
-                if (newIsRecurring) {
-                    step.isCompleted = false;
-                    step.completionLog = [];
-                } else {
-                    step.completionLog = null;
-                }
-            }
-
-            saveGoals();
-            
-            // Toggle back to display mode (renderGoals will implicitly do this, but for better UX, toggle the UI before a full re-render)
-            handleToggleStepEdit(goalId, stepId); 
-            // Re-render the entire list to update progress and step display
-            renderGoals(); 
-        };
-
         /**
          * Adds a new task/step to an existing goal.
          * @param {string} goalId 
@@ -744,34 +764,37 @@
             const goal = goals.find(g => g.id === goalId);
             if (!goal) return;
 
-            // Retrieve the new input elements using their IDs
             const descInput = document.getElementById(`new-task-desc-${goalId}`);
             const startInput = document.getElementById(`new-task-start-date-${goalId}`);
             const endInput = document.getElementById(`new-task-end-date-${goalId}`);
             const recurringCheckbox = document.getElementById(`new-task-recurring-${goalId}`);
-            
+
             const description = descInput.value.trim();
             const startDate = startInput.value;
             const endDate = endInput.value;
             const isRecurring = recurringCheckbox.checked;
 
             if (!description) {
-                showStatusMessage('Task description is required!');
+                showStatusMessage('Task description is required.', 'bg-red-500');
+                return;
+            }
+            if (!isDateBefore(startDate, endDate)) {
+                showStatusMessage('Task Target Date must be after or same as Start Date.', 'bg-red-500');
                 return;
             }
 
             const newStep = {
                 id: generateId(),
-                description: description,
-                isCompleted: false, // Only used for non-recurring
-                isRecurring: isRecurring, // New flag
-                completionLog: isRecurring ? [] : null, // New log for recurring tasks
-                startDate: startDate, 
-                endDate: endDate, 
+                description,
+                startDate,
+                endDate,
+                isRecurring,
+                isCompleted: false,
+                completionLog: isRecurring ? [] : null
             };
 
             goal.steps.push(newStep);
-            saveGoals();
+            saveGoals('New task added to goal!');
 
             // Clear inputs
             descInput.value = '';
@@ -780,329 +803,292 @@
             recurringCheckbox.checked = false;
         };
 
-        /**
-         * Toggles the edit mode for goal notes.
-         * @param {HTMLElement} button - The button element that was clicked.
-         */
-        const handleEditNotes = (button) => {
-            const goalDiv = button.closest('[data-goal-id]');
-            const goalId = goalDiv.getAttribute('data-goal-id');
-            const isEditing = button.getAttribute('data-is-editing') === 'true';
-            
-            const notesSection = button.closest('.details-container').querySelector('.pt-2'); // Find the specific note content container
-            const notesDisplay = notesSection.querySelector('.notes-display');
-            const notesEdit = notesSection.querySelector('.notes-edit');
-            const notesTextarea = notesSection.querySelector('.notes-textarea');
 
-            if (isEditing) {
-                // Exit edit mode (should usually be handled by save/cancel)
-                notesDisplay.classList.remove('hidden');
-                notesEdit.classList.add('hidden');
-                button.textContent = 'Edit';
-                button.setAttribute('data-is-editing', 'false');
-
-            } else {
-                // Enter edit mode
-                const goal = goals.find(g => g.id === goalId);
-                if (goal) {
-                    notesTextarea.value = goal.notes || '';
-                    notesDisplay.classList.add('hidden');
-                    notesEdit.classList.remove('hidden');
-                    button.textContent = 'Editing...';
-                    button.setAttribute('data-is-editing', 'true');
-                }
-            }
-        };
-        
-        /**
-         * Saves the updated goal notes.
-         * @param {string} goalId 
-         * @param {string} newNotes 
-         */
-        const handleSaveNotes = (goalId, newNotes) => {
-            const goal = goals.find(g => g.id === goalId);
-            if (!goal) return;
-
-            goal.notes = newNotes.trim();
-            saveGoals();
-
-            // Exit edit mode manually after saving
-            const goalDiv = document.querySelector(`[data-goal-id="${goalId}"]`);
-            const editButton = goalDiv.querySelector('.edit-notes-btn');
-            if (editButton) handleEditNotes(editButton);
-        };
+        // --- DRAFT STEP HANDLERS (For New Goal Form) ---
 
         /**
-         * Cancels note editing and reverts to display mode.
-         * @param {string} goalId 
-         * @param {HTMLElement} button 
+         * Renders the temporary list of drafted steps in the Add Goal form.
          */
-        const handleCancelNotes = (goalId, button) => {
-             const goalDiv = document.querySelector(`[data-goal-id="${goalId}"]`);
-             const editButton = goalDiv.querySelector('.edit-notes-btn');
-             if (editButton) handleEditNotes(editButton); // Call edit handler to toggle back
-        }
-
-        /**
-         * Deletes a goal after confirmation.
-         * @param {string} goalId 
-         */
-        const deleteGoal = (goalId) => {
-            goals = goals.filter(g => g.id !== goalId);
-            saveGoals();
-            hideModal();
-        };
-        
-        /**
-         * Deletes a step after confirmation.
-         * @param {string} goalId 
-         * @param {string} stepId 
-         */
-        const handleDeleteStep = (goalId, stepId) => {
-            const goal = goals.find(g => g.id === goalId);
-            if (!goal) return;
-
-            goal.steps = goal.steps.filter(step => step.id !== stepId);
-            saveGoals();
-            hideModal();
-        };
-
-
-        // --- CONFIRMATION MODAL LOGIC ---
-        const modal = document.getElementById('confirmation-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalMessage = document.getElementById('modal-message');
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
-
-        /**
-         * Shows the custom delete confirmation modal, handling both goals and steps.
-         * @param {string} goalId 
-         * @param {string} entityId - Either goalId or stepId
-         * @param {'goal'|'step'} type - The type of entity being deleted.
-         * @param {string} name - The name of the goal or step.
-         */
-        const showDeleteModal = (goalId, entityId, type, name) => {
-            pendingDeletion = { type, goalId, stepId: type === 'step' ? entityId : null };
-
-            if (type === 'goal') {
-                modalTitle.textContent = 'Delete Goal';
-                modalMessage.textContent = `Are you sure you want to delete the goal "${name}"? This action cannot be undone.`;
-                modalConfirmBtn.textContent = 'Confirm Delete Goal';
-                modalConfirmBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md';
-            } else if (type === 'step') {
-                modalTitle.textContent = 'Delete Task';
-                modalMessage.textContent = `Are you sure you want to delete the task "${name}"? This action cannot be undone.`;
-                modalConfirmBtn.textContent = 'Confirm Delete Task';
-                modalConfirmBtn.className = 'px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition duration-150 shadow-md';
-            }
-            
-            modal.classList.remove('hidden');
-            modal.onclick = hideModal;
-        };
-
-
-        /**
-         * Hides the custom modal.
-         */
-        const hideModal = () => {
-            modal.classList.add('hidden');
-            pendingDeletion = { type: null, goalId: null, stepId: null };
-        };
-        
-        // Attach modal event listeners
-        modalConfirmBtn.onclick = () => {
-            if (pendingDeletion.type === 'goal' && pendingDeletion.goalId) {
-                deleteGoal(pendingDeletion.goalId);
-            } else if (pendingDeletion.type === 'step' && pendingDeletion.goalId && pendingDeletion.stepId) {
-                handleDeleteStep(pendingDeletion.goalId, pendingDeletion.stepId);
-            }
-        };
-        modalCancelBtn.onclick = hideModal;
-
-        // Prevent modal from closing when clicking inside the content box
-        document.getElementById('modal-content').onclick = (e) => e.stopPropagation();
-
-        // --- GOAL CREATION DRAFTING ---
-
-        /**
-         * Renders the draft steps list.
-         */
-        const renderStepsDraft = () => {
+        const renderDraftSteps = () => {
             const list = document.getElementById('steps-draft-list');
             list.innerHTML = '';
-
+            
             if (stepsDraft.length === 0) {
+                list.innerHTML = `<p class="text-center text-xs text-gray-400 italic py-2">No tasks added to the draft goal yet.</p>`;
                 return;
             }
 
             stepsDraft.forEach((step, index) => {
-                // Dates are now smaller (text-xs)
-                const datesHtml = (step.startDate || step.endDate)
-                    ? `<span class="text-gray-500 text-xs">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
+                const dates = (step.startDate || step.endDate)
+                    ? `<span class="text-xs text-gray-400">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
                     : '';
                 
                 const recurringTag = step.isRecurring 
-                    ? `<span class="text-xs font-semibold text-blue-500 bg-blue-100 px-2 py-0.5 rounded-full ml-2">Daily</span>`
+                    ? `<span class="text-xs font-semibold text-blue-500 bg-blue-100 px-1 py-0.5 rounded-full ml-2">Daily</span>`
                     : '';
 
-                const li = document.createElement('li');
-                li.className = 'flex justify-between items-center text-sm p-2 bg-white rounded-lg border border-gray-100 shadow-sm';
-                li.innerHTML = `
-                    <div class="flex-grow min-w-0">
-                        <span class="text-gray-700 block truncate">${index + 1}. ${step.description} ${recurringTag}</span>
-                        ${datesHtml}
-                    </div>
-                    <button
-                        type="button"
-                        onclick="handleRemoveStepDraft('${step.id}')"
-                        class="text-red-500 hover:text-red-700 p-1 rounded-full transition flex-shrink-0"
-                        title="Remove Task"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                list.innerHTML += `
+                    <li class="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200">
+                        <div class="text-sm flex-grow min-w-0 mr-2">
+                            <span class="block font-medium text-gray-700 truncate">${step.description} ${recurringTag}</span>
+                            ${dates}
+                        </div>
+                        <button type="button" onclick="removeDraftStep(${index})" class="text-red-500 hover:text-red-700 p-1 rounded-full transition" title="Remove Task">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </li>
                 `;
-                list.appendChild(li);
             });
         };
 
         /**
-         * Adds a step to the draft list.
+         * Adds a step from the draft inputs to the stepsDraft array.
          */
-        const handleAddStepDraft = () => {
+        const addDraftStep = () => {
             const descInput = document.getElementById('new-step-desc');
             const startInput = document.getElementById('new-step-start-date');
             const endInput = document.getElementById('new-step-end-date');
             const recurringCheckbox = document.getElementById('new-step-recurring');
-            
+
             const description = descInput.value.trim();
             const startDate = startInput.value;
             const endDate = endInput.value;
             const isRecurring = recurringCheckbox.checked;
 
             if (!description) {
-                showStatusMessage('Task description is required for draft!');
+                showStatusMessage('Task description is required to add a draft step.', 'bg-red-500');
+                return;
+            }
+            if (!isDateBefore(startDate, endDate)) {
+                showStatusMessage('Task Target Date must be after or same as Start Date.', 'bg-red-500');
                 return;
             }
 
-            const newStep = {
-                id: generateId(),
-                description: description,
+
+            stepsDraft.push({
+                id: generateId(), // temp ID for draft removal
+                description,
+                startDate,
+                endDate,
+                isRecurring,
                 isCompleted: false,
-                isRecurring: isRecurring,
-                completionLog: isRecurring ? [] : null,
-                startDate: startDate,
-                endDate: endDate,
-            };
+                completionLog: isRecurring ? [] : null
+            });
 
-            stepsDraft.push(newStep);
-            renderStepsDraft();
+            renderDraftSteps();
 
-            // Clear inputs
+            // Clear inputs for the next step
             descInput.value = '';
             startInput.value = '';
             endInput.value = '';
             recurringCheckbox.checked = false;
+            descInput.focus();
         };
 
         /**
-         * Removes a step from the draft list.
-         * @param {string} idToRemove 
+         * Removes a step from the stepsDraft array by index.
+         * @param {number} index 
          */
-        const handleRemoveStepDraft = (idToRemove) => {
-            stepsDraft = stepsDraft.filter(step => step.id !== idToRemove);
-            renderStepsDraft();
+        const removeDraftStep = (index) => {
+            stepsDraft.splice(index, 1);
+            renderDraftSteps();
         };
 
         // --- FORM SUBMISSION ---
-        
+
         /**
-         * Handles the final creation of a new goal.
+         * Handles the creation of a new goal from the form.
          * @param {Event} e 
          */
-        const handleAddGoal = (e) => {
+        const handleNewGoalSubmit = (e) => {
             e.preventDefault();
-
+            
             const nameInput = document.getElementById('goal-name');
             const startInput = document.getElementById('goal-start');
             const endInput = document.getElementById('goal-end');
             const notesInput = document.getElementById('goal-notes');
 
-            const name = nameInput.value.trim();
+            const goalName = nameInput.value.trim();
             const startDate = startInput.value;
             const endDate = endInput.value;
             const notes = notesInput.value.trim();
 
-            if (!name) {
-                showStatusMessage('Goal name cannot be empty!');
+            if (!isDateBefore(startDate, endDate)) {
+                showStatusMessage('Goal Target Date must be after or same as Start Date.', 'bg-red-500');
                 return;
             }
 
             const newGoal = {
                 id: generateId(),
-                name: name,
-                startDate: startDate,
-                endDate: endDate,
-                notes: notes,
-                steps: [...stepsDraft], // Clone draft steps into the new goal
-                createdAt: new Date().toISOString(),
-                isExpanded: true // Expand details upon creation
+                name: goalName,
+                startDate,
+                endDate,
+                notes,
+                steps: [...stepsDraft], // Use a copy of the drafted steps
+                isExpanded: true, // Keep new goal expanded by default
+                progress: 0 // Will be recalculated in saveGoals
             };
 
             goals.push(newGoal);
-            saveGoals();
+            saveGoals('New goal created successfully!');
 
             // Reset form and draft
-            nameInput.value = '';
-            startInput.value = getTodayDateString();
-            endInput.value = '';
-            notesInput.value = '';
+            e.target.reset();
             stepsDraft = [];
-            renderStepsDraft();
+            renderDraftSteps();
+        };
 
-            // Collapse the form
-            const formContent = document.getElementById('add-goal-form-content');
-            const toggleFormBtn = document.getElementById('toggle-add-form');
-            if(formContent.classList.contains('expanded')) {
-                formContent.classList.remove('expanded');
-                toggleFormBtn.querySelector('svg').classList.remove('rotate-180');
+        // --- EDIT GOAL MODAL HANDLERS ---
+
+        /**
+         * Shows the modal for editing goal name and dates.
+         * @param {string} goalId 
+         */
+        const showEditModal = (goalId) => {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById('edit-goal-id').value = goal.id;
+            document.getElementById('edit-goal-name').value = goal.name;
+            document.getElementById('edit-goal-start').value = goal.startDate || '';
+            document.getElementById('edit-goal-end').value = goal.endDate || '';
+            
+            document.getElementById('edit-date-error').classList.add('hidden');
+            document.getElementById('edit-name-error').classList.add('hidden');
+            document.getElementById('edit-goal-modal').classList.remove('hidden');
+        };
+
+        /**
+         * Hides the edit goal modal.
+         */
+        const hideEditModal = () => {
+            document.getElementById('edit-goal-modal').classList.add('hidden');
+        };
+
+        /**
+         * Handles the submission of the edit goal form.
+         * @param {Event} e 
+         */
+        const handleEditGoalSubmit = (e) => {
+            e.preventDefault();
+            
+            const goalId = document.getElementById('edit-goal-id').value;
+            const newName = document.getElementById('edit-goal-name').value.trim();
+            const newStart = document.getElementById('edit-goal-start').value;
+            const newEnd = document.getElementById('edit-goal-end').value;
+
+            const nameError = document.getElementById('edit-name-error');
+            const dateError = document.getElementById('edit-date-error');
+            nameError.classList.add('hidden');
+            dateError.classList.add('hidden');
+
+            if (!newName) {
+                nameError.classList.remove('hidden');
+                return;
+            }
+            if (!isDateBefore(newStart, newEnd)) {
+                dateError.classList.remove('hidden');
+                return;
+            }
+            
+            const goal = goals.find(g => g.id === goalId);
+            if (goal) {
+                goal.name = newName;
+                goal.startDate = newStart;
+                goal.endDate = newEnd;
+                saveGoals('Goal details updated successfully!');
+            }
+
+            hideEditModal();
+        };
+
+        // --- NOTES HANDLERS ---
+        
+        const handleEditNotes = (button) => {
+            const goalId = button.getAttribute('data-goal-id');
+            const goalDiv = button.closest('.goal-details-content');
+
+            if (!goalDiv) return;
+
+            const display = goalDiv.querySelector('.notes-display');
+            const edit = goalDiv.querySelector('.notes-edit');
+            
+            display.classList.add('hidden');
+            edit.classList.remove('hidden');
+            button.textContent = 'Editing...';
+            button.setAttribute('disabled', 'true');
+        };
+
+        const handleCancelNotes = (goalId, button) => {
+            const goalDiv = button.closest('.goal-details-content');
+            if (!goalDiv) return;
+
+            const display = goalDiv.querySelector('.notes-display');
+            const edit = goalDiv.querySelector('.notes-edit');
+            const editBtn = goalDiv.querySelector('.edit-notes-btn');
+
+            display.classList.remove('hidden');
+            edit.classList.add('hidden');
+            editBtn.textContent = 'Edit';
+            editBtn.removeAttribute('disabled');
+        };
+
+        const handleSaveNotes = (goalId, newNotes) => {
+            const goal = goals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            goal.notes = newNotes;
+            saveGoals('Notes saved.');
+        };
+
+
+        // --- DELETE MODAL HANDLERS ---
+        let deleteGoalId = null;
+
+        const showDeleteModal = (goalId, goalName) => {
+            deleteGoalId = goalId;
+            document.getElementById('modal-title').textContent = `Confirm Deletion`;
+            document.getElementById('modal-message').textContent = `Are you sure you want to delete the goal: "${goalName}"? This action cannot be undone.`;
+            document.getElementById('confirmation-modal').classList.remove('hidden');
+        };
+
+        const hideDeleteModal = () => {
+            document.getElementById('confirmation-modal').classList.add('hidden');
+            deleteGoalId = null;
+        };
+
+        const deleteGoal = () => {
+            if (deleteGoalId) {
+                goals = goals.filter(g => g.id !== deleteGoalId);
+                saveGoals('Goal deleted successfully!');
+                hideDeleteModal();
             }
         };
 
-        // --- INITIALIZATION AND EVENT LISTENERS ---
+        // --- INITIALIZATION ---
 
-        document.addEventListener('DOMContentLoaded', () => {
+        window.onload = () => {
             loadGoals();
-            renderGoals();
-            renderStepsDraft();
+            applyFilters(); // Initial render with default sorting/filtering
+            renderDraftSteps(); // Initial render for new goal form
 
-            // Set default start date for the main goal form
-            document.getElementById('goal-start').value = getTodayDateString();
-
-            // Add form listeners
-            document.getElementById('add-goal-form').addEventListener('submit', handleAddGoal);
-            document.getElementById('add-step-draft-btn').addEventListener('click', handleAddStepDraft);
-
-            // Add form toggle listeners
-            const setupToggle = (buttonId, contentId) => {
-                const button = document.getElementById(buttonId);
-                const content = document.getElementById(contentId);
-                
-                if (button && content) {
-                     const svg = button.querySelector('svg');
-                    button.addEventListener('click', () => {
-                        content.classList.toggle('expanded');
-                        if (svg) svg.classList.toggle('rotate-180');
-                        button.setAttribute('aria-expanded', content.classList.contains('expanded'));
-                    });
-                }
-            };
-
-            setupToggle('toggle-add-form', 'add-goal-form-content');
-            setupToggle('toggle-notes', 'notes-container');
+            // Attach event listeners
+            document.getElementById('add-goal-form').addEventListener('submit', handleNewGoalSubmit);
+            document.getElementById('add-step-draft-btn').addEventListener('click', addDraftStep);
             
-            // NOTE: The Notes section is intentionally collapsed by default here
-        });
+            document.getElementById('edit-goal-form').addEventListener('submit', handleEditGoalSubmit);
+
+            document.getElementById('modal-cancel-btn').addEventListener('click', hideDeleteModal);
+            document.getElementById('modal-confirm-btn').addEventListener('click', deleteGoal);
+
+            // Toggle handlers for main form sections
+            document.getElementById('toggle-add-form').addEventListener('click', function() {
+                handleToggleNestedDetails(this, 'add-goal-form-content');
+            });
+            document.getElementById('toggle-notes').addEventListener('click', function() {
+                handleToggleNestedDetails(this, 'notes-container');
+            });
+        };
     </script>
 </body>
 </html>
