@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Goal Tracker</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,6 +30,7 @@
         .form-input:focus {
             ring: 3px solid #3b82f6;
             border-color: #3b82f6;
+            outline: none;
         }
         /* Style for the step completion checkbox (making it look good) */
         .toggle-step {
@@ -73,7 +74,7 @@
                     class="p-1 text-gray-600 hover:text-blue-600 rounded-full transition duration-150"
                     aria-label="Toggle Form"
                 >
-                    <svg class="w-5 h-5 rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-li[...]></svg>
+                    <svg class="w-5 h-5 rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
             </div>
             
@@ -83,7 +84,7 @@
                     <!-- Goal Name Input (Added mb-2) -->
                     <div class="mb-2">
                         <label for="goal-name" class="block text-sm font-medium text-gray-700 mb-1">Goal Name</label>
-                        <input id="goal-name" type="text" placeholder="e.g., Launch New Project" class="form-input w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm" />
+                        <input id="goal-name" type="text" placeholder="e.g., Launch New Project" class="form-input w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-sm" />
                     </div>
                     
                     <!-- Goal Dates Input (Added mb-2) -->
@@ -145,7 +146,7 @@
                     <div class="p-2 bg-gray-50 rounded-lg border border-gray-200 mt-2">
                         <button type="button" id="toggle-notes" class="w-full text-left flex justify-between items-center text-sm font-bold text-gray-700 hover:text-blue-600 transition duration-150" aria-expanded="false">
                             <span>Notes</span>
-                            <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linej[...]></svg>
+                            <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
                         <div id="notes-container" class="details-container">
                             <textarea id="goal-notes" rows="2" placeholder="Context or key resources..." class="form-input w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150 mt-2"></textarea>
@@ -329,7 +330,9 @@
             const baseColor = isGoalCompleted ? 'emerald' : 'blue';
 
             const goalDiv = document.createElement('div');
-            goalDiv.className = `bg-white shadow rounded-lg p-3 border-t-4 border-${baseColor}-500 transition-shadow hover:shadow-lg`;
+            // Build the final class name with chosen color
+            const borderClass = `border-t-4 border-${baseColor}-500`;
+            goalDiv.className = `bg-white shadow rounded-lg p-3 ${borderClass} transition-shadow hover:shadow-lg`;
             goalDiv.setAttribute('data-goal-id', goal.id);
 
             // --- NOTES/EDITING SECTION (Styled compact) ---
@@ -348,7 +351,7 @@
                         title="Toggle Notes Section"
                     >
                         <span>Notes</span>
-                        <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin=[...]/></svg>
+                        <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     
                     <div id="goal-notes-content-${goal.id}" class="details-container">
@@ -359,7 +362,7 @@
                                     data-goal-id="${goal.id}"
                                     data-is-editing="false"
                                     onclick="handleEditNotes(this)"
-                                    class="edit-notes-btn text-xs text-${baseColor}-600 hover:text-${baseColor}-800 transition font-medium px-2 py-0.5 rounded-md bg-white hover:bg-gray-100 border border-gray-200"
+                                    class="edit-notes-btn text-xs text-${baseColor}-600 hover:text-${baseColor}-800 transition font-medium px-2 py-0.5 rounded-md bg-white hover:bg-gray-100 border border-${baseColor}-200"
                                     title="Edit Notes"
                                 >
                                     Edit
@@ -395,7 +398,7 @@
             // --- END NOTES SECTION ---
 
 
-            // Generate Steps List HTML
+            // Generate Steps List HTML (clean, remove extra line above description)
             const stepsHtml = goal.steps.length > 0
                 ? goal.steps.map(step => {
                     // Determine checkbox state:
@@ -405,27 +408,26 @@
 
                     // CONDITIONAL DATES: Only show dates if the goal is expanded
                     const datesHtml = isExpanded && (step.startDate || step.endDate)
-                        ? `<span class="text-xs text-gray-400">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
+                        ? `<div class="text-xs text-gray-400 mt-1">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</div>`
                         : '';
                     
                     const recurringTag = step.isRecurring 
                         ? `<span class="text-xs font-semibold text-blue-500 bg-blue-100 px-2 py-0.5 rounded-full ml-2">Daily</span>`
                         : '';
 
-                    return `
-                    <li data-step-id="${step.id}" class="flex items-start task-item bg-white rounded-lg border border-gray-100 transition duration-100 hover:bg-gray-50">
+                    return `<li data-step-id="${step.id}" class="flex items-start gap-3 task-item bg-white rounded-lg border border-gray-100 p-2">
                         <input type="checkbox" ${isCompleted ? 'checked' : ''} 
                             onchange="handleToggleStep('${goal.id}', '${step.id}', this.checked)"
-                            class="toggle-step h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer mt-1 mr-2"
+                            class="toggle-step h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500 flex-shrink-0 cursor-pointer"
                             title="${step.isRecurring ? 'Mark complete for today' : 'Mark as permanent complete'}" />
-                        <div class="text-sm flex-grow min-w-0 py-1">
-                            <span class="block font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}">
+                        <div class="flex flex-col min-w-0">
+                            <div class="text-sm ${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'} truncate">
                                 ${step.description} ${recurringTag}
-                            </span>
+                            </div>
                             ${datesHtml}
                         </div>
-                    </li>
-                `}).join('')
+                    </li>`;
+                }).join('')
                 : '<p class="text-center text-gray-500 italic p-2 text-sm">No tasks yet. Click "+ Add New Task" to start!</p>';
             
             // --- ADD TASK COLLAPSIBLE FORM (compact, matches create form) ---
@@ -440,7 +442,7 @@
                         title="Toggle Add Task Form"
                     >
                         <span>+ Add New Task</span>
-                        <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin=[...]/></svg>
+                        <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     
                     <div id="add-task-form-content-${goal.id}" class="details-container">
@@ -503,7 +505,7 @@
                 ? `<h4 class="text-sm font-bold text-gray-700 mb-2">Tasks</h4>`
                 : '';
 
-
+            // Build final inner HTML
             goalDiv.innerHTML = `
                 <div class="flex items-center justify-between mb-1 cursor-pointer" onclick="handleToggleDetails('${goal.id}')">
                     <!-- Goal Name (Clickable) -->
@@ -517,14 +519,14 @@
                         <span class="text-sm font-medium text-gray-500 hidden sm:inline">${completedToday}/${totalSteps} tasks</span>
                         
                         ${isGoalCompleted ? `
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Completed"><path stroke-linecap="round[...]"></svg>
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" title="Completed"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <span class="text-base font-extrabold text-emerald-600">100%</span>
                         ` : `
                             <span class="text-base font-extrabold text-${baseColor}-600">${progressPercent}%</span>
                         `}
                         
                         <!-- Expansion Toggle Icon -->
-                        <svg class="w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org[...]/></svg>
+                        <svg class="w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : 'rotate-0'}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
 
@@ -550,7 +552,6 @@
                     ${stepsHtml}
                 </ul>
 
-                
                 <!-- Expanded Content (Now only contains editing/management features) -->
                 <div class="goal-details-content details-container ${isExpanded ? 'expanded' : ''}">
                     
@@ -795,7 +796,7 @@
             stepsDraft.forEach((step, index) => {
                 // Dates are now smaller (text-xs)
                 const datesHtml = (step.startDate || step.endDate)
-                    ? `<span class="text-gray-500 text-xs">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</span>`
+                    ? `<div class="text-gray-500 text-xs">Start: ${formatDate(step.startDate)} | Target: ${formatDate(step.endDate)}</div>`
                     : '';
                 
                 const recurringTag = step.isRecurring 
@@ -815,7 +816,7 @@
                         class="text-red-500 hover:text-red-700 p-1 rounded-full transition flex-shrink-0"
                         title="Remove Task"
                     >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width=[...]/></svg>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 `;
                 list.appendChild(li);
